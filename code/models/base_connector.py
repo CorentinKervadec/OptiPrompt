@@ -24,7 +24,13 @@ TOKENIZATION = {
     "xlnet-base-cased":"sentencepiece",
     "xlnet-large-cased":"sentencepiece",
     "transfo-xl-wt103":"word",
-    "google/t5-v1_1-base":"sentencepiece"
+    "google/t5-v1_1-base":"sentencepiece",
+    "facebook/opt-350m":"bpe",
+    "facebook/opt-1.3b":"bpe",
+    "facebook/opt-6.7b":"bpe",
+    "facebook/opt-30b":"bpe",
+    "facebook/opt-66b":"bpe",
+    "facebook/opt-iml-max-30b":"bpe",
 }
 
 LM_TYPE = {
@@ -47,8 +53,20 @@ LM_TYPE = {
      "t5-small":"seq2seq",
      "t5-base":"seq2seq",
      "t5-large":"seq2seq",
-     "google/t5-v1_1-base":"seq2seq"
+     "google/t5-v1_1-base":"seq2seq",
+     "facebook/opt-350m":"causal",
+     "facebook/opt-1.3b":"causal",
+     "facebook/opt-6.7b":"causal",
+     "facebook/opt-30b":"causal",
+     "facebook/opt-66b":"causal",
+     "facebook/opt-iml-max-30b":"causal",
  }
+
+LARGE_MODEL_LIST= [
+    "facebook/opt-30b",
+    "facebook/opt-iml-max-30b",
+    "facebook/opt-66b"
+ ]
 
 
 class Base_Connector():
@@ -59,6 +77,10 @@ class Base_Connector():
         self.vocab = None
         # This defines where the device where the model is. Changed by try_cuda.
         self._model_device = 'cpu'
+
+    def enable_output_hidden_states(self):
+        self.config.output_hidden_states=True
+
 
     def optimize_top_layer(self, vocab_subset):
         """
@@ -83,6 +105,12 @@ class Base_Connector():
         self.inverse_vocab = {w: i for i, w in enumerate(self.vocab)}
     
     def _init_vocab(self):
+        
+        if 'facebook/opt' in self.tokenizer.name_or_path:
+            vocab = self.tokenizer.encoder
+        else:
+            vocab = self.tokenizer.vocab
+
         if self.tokenization in ["bpe", "sentencepiece"]: 
             # Convert vocabulary to BERT
             special_tokens = [self.tokenizer.bos_token, self.tokenizer.eos_token, self.tokenizer.unk_token,
@@ -91,7 +119,8 @@ class Base_Connector():
             separator_tokens = {"bpe":"Ġ", "sentencepiece":"▁"}
             sep_token = separator_tokens[self.tokenization]
             converted_vocab = {}
-            for w, i in self.tokenizer.vocab.items():
+
+            for w, i in vocab.items():
                 value = w
                 if value[0] == sep_token:  # if the token starts with a whitespace
                     value = value[1:]
@@ -104,7 +133,7 @@ class Base_Connector():
                     value = "{}_{}".format(value, i)
                 converted_vocab[value] = i
         else:
-            converted_vocab = self.tokenizer.vocab
+            converted_vocab = vocab
 
         # Compatibility with existing code
         self.vocab = list(dict(sorted(converted_vocab.items(), key=lambda item: item[1])).keys())
@@ -155,6 +184,9 @@ class Base_Connector():
         return -target_logp
     
     def run_batch(self, sentences_list, samples_list, try_cuda=True, training=True, filter_indices=None, index_list=None, vocab_to_common_vocab=None):
+        
+        self.model.config.output_hidden_states=True
+
         if try_cuda and torch.cuda.device_count() > 0:
             self.try_cuda()
 

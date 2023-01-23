@@ -17,10 +17,10 @@ def init_template(prompt_file, relation):
     return relation['template']
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_name', type=str, default='bert-base-cased', help='the huggingface model name')
+parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help='the huggingface model name')
 parser.add_argument('--output_dir', type=str, default='output', help='the output directory to store prediction results')
 parser.add_argument('--common_vocab_filename', type=str, default='common_vocab_cased.txt', help='common vocabulary of models (used to filter triples)')
-parser.add_argument('--prompt_file', type=str, help='prompt file containing 41 relations')
+parser.add_argument('--prompt_file', type=str, default='prompts/LAMA_relations.jsonl', help='prompt file containing 41 relations')
 
 parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA")
 parser.add_argument('--eval_batch_size', type=int, default=32)
@@ -28,15 +28,23 @@ parser.add_argument('--eval_batch_size', type=int, default=32)
 parser.add_argument('--seed', type=int, default=6)
 parser.add_argument('--output_predictions', default=True, help='whether to output top-k predictions')
 parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
+parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    logger.info(args)
-    n_gpu = torch.cuda.device_count()
+    # Initialize GPUs
+    device=torch.device(args.device)
+    if args.device == 'cuda':
+        n_gpu = torch.cuda.device_count()
+    elif args.device == 'mps':
+        n_gpu = 1
+    else:
+        n_gpu = 0
     logger.info('# GPUs: %d'%n_gpu)
     if n_gpu == 0:
         logger.warning('No GPU found! exit!')
+
     logger.info('Model: %s'%args.model_name)
 
     random.seed(args.seed)
@@ -46,6 +54,9 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(args.seed)
 
     model = build_model_by_name(args)
+
+    # Turn model.config.output_hidden_states on to get access to hidden states
+    model.enable_output_hidden_states()
 
     if args.common_vocab_filename is not None:
         vocab_subset = load_vocab(args.common_vocab_filename)

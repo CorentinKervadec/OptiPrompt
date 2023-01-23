@@ -15,12 +15,19 @@ cor = 0
 
 rel_avg = []
 
+
 for relation in relations:
     rel_tot = 0
     rel_cor = 0
+    rel_pred_stat = {}
     samples = load_file(os.path.join(output_dir, '%s.jsonl'%(relation)))
     for sample in samples:
-        if sample['obj_label'] == sample['topk'][0]['token']:
+        rel_pred=sample['topk'][0]['token']
+        if rel_pred in rel_pred_stat:
+            rel_pred_stat[rel_pred] += 1
+        else:
+            rel_pred_stat[rel_pred] = 1
+        if sample['obj_label'] == rel_pred:
             rel_cor += 1
         rel_tot += 1
 
@@ -29,6 +36,7 @@ for relation in relations:
     cor += rel_cor
 
     print('%s\t%.2f\t(%d / %d)'%(relation, (rel_cor / rel_tot * 100), rel_cor, rel_tot))
+    #print(rel_pred_stat)
 
 micro = sum(rel_avg) / len(rel_avg) * 100
 macro = cor / tot * 100

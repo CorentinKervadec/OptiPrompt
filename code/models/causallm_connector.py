@@ -15,7 +15,10 @@ class CausalLM(Base_Connector):
 
         self.model_name = args.model_name
         self.config = AutoConfig.from_pretrained(self.model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        use_fast=True
+        if 'opt' in args.model_name:
+            use_fast=False # because of a bug with the OPT tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=use_fast)
         self.tokenizer.add_special_tokens({'pad_token': self.tokenizer.eos_token})
         self.tokenizer.add_special_tokens({'mask_token': "[MASK]"})
         self.tokenization = TOKENIZATION[self.model_name]
