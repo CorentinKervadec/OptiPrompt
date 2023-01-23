@@ -30,7 +30,11 @@ class CausalLM(Base_Connector):
         else:
             self._init_vocab()
 
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        if self.model_name in LARGE_MODEL_LIST:
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        
         self.model.eval()
 
         self.EOS = self.tokenizer.eos_token
