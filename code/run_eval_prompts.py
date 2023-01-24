@@ -29,6 +29,7 @@ parser.add_argument('--seed', type=int, default=6)
 parser.add_argument('--output_predictions', default=True, help='whether to output top-k predictions')
 parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
+parser.add_argument('--output_all_log_probs', action="store_true", help='whether to output all the log probabilities')
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -65,6 +66,9 @@ if __name__ == "__main__":
     else:
         filter_indices = None
         index_list = None
+
+    if args.output_all_log_probs:
+        model.k = len(vocab_subset)
 
     for relation in os.listdir(args.test_data_dir):
         relation = relation.split(".")[0]
