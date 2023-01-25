@@ -38,13 +38,15 @@ if __name__ == "__main__":
     device=torch.device(args.device)
     if args.device == 'cuda':
         n_gpu = torch.cuda.device_count()
+        if n_gpu == 0:
+            logger.warning('No GPU found! exit!')
+        logger.info('# GPUs: %d'%n_gpu)
+
     elif args.device == 'mps':
         n_gpu = 1
     else:
+        logger.info('# Running on CPU')
         n_gpu = 0
-    logger.info('# GPUs: %d'%n_gpu)
-    if n_gpu == 0:
-        logger.warning('No GPU found! exit!')
 
     logger.info('Model: %s'%args.model_name)
 
