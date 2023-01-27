@@ -1,0 +1,111 @@
+# MODELS INFOS
+LM_MODELS={
+    "gpt2":{
+        'family':'gpt2',
+        'n_p':117e6,
+    },
+    "gpt2-medium":
+    {
+        'family':'gpt2',
+        'n_p':345e6,
+    },
+    "gpt2-large":
+    {
+        'family':'gpt2',
+        'n_p':774e6,
+    },
+    "gpt2-xl":
+    {
+        'family':'gpt2',
+        'n_p':1.5e9,
+    },
+    "facebook/opt-350m":
+    {
+        'family':'opt',
+        'n_p':350e6,
+    },
+    "facebook/opt-1.3b":
+    {
+        'family':'opt',
+        'n_p':1.3e9,
+    },
+    "facebook/opt-6.7b":
+    {
+        'family':'opt',
+        'n_p':6.7e9,
+    },
+    "facebook/opt-30b":
+    {
+        'family':'opt',
+        'n_p':30e9,
+    },
+    "facebook/opt-66b":
+    {
+        'family':'opt',
+        'n_p':66e9,
+    },
+    "facebook/opt-iml-max-30b":
+    {
+        'family':'opt-iml',
+        'n_p':30e9,
+    },
+}
+
+# corpus-size in GB
+LM_FAMILIES={
+    'gpt2':
+    {
+        'type':'causal',
+        'finetuned':'',
+        'tokenizer':'bpe',
+        'pretrain-corpus':[
+            'webtext'
+        ],
+        'pretrain-corpus-size':40,
+    },
+    'opt':
+    {
+        'type':'causal',
+        'finetuned':'',
+        'tokenizer':'bpe',
+        'pretrain-corpus':[
+            'bookcorpus',
+            'cc-stories',
+            'the-pile',
+            'pushshift-reddit',
+            'cc-news-v2'
+        ],
+        'pretrain-corpus-size':800,
+    },
+    'opt-iml':
+    {
+        'type':'causal',
+        'finetuned':'auto-instruct',
+        'tokenizer':'bpe',
+        'pretrain-corpus':[
+            'bookcorpus',
+            'cc-stories',
+            'the-pile',
+            'pushshift-reddit',
+            'cc-news-v2'
+        ],
+        'pretrain-corpus-size':800,
+        'finetune-corpus':[
+            'super-naturalinstructions',
+            'promptsource',
+            'crossfit',
+            'flan',
+            'exmix',
+            't5',
+            'unifiedskg',
+            'reasoning'
+        ]
+    },
+}
+
+PROMPTS={
+    'LAMA_relations':{
+        'type':'human',
+        'path':'./prompts/LAMA_relations.json'
+    }
+}
