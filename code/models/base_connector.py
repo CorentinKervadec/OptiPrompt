@@ -146,6 +146,10 @@ class Base_Connector():
         self.inverse_vocab = converted_vocab
 
     def try_cuda(self):
+
+        if self.model in LARGE_MODEL_LIST:
+            return # already done at initialisation
+
         """Move model to GPU if one is available."""
         if torch.cuda.is_available():
             if self._model_device != 'cuda':
