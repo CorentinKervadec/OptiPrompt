@@ -31,7 +31,8 @@ class CausalLM(Base_Connector):
             self._init_vocab()
 
         if self.model_name in LARGE_MODEL_LIST:
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
+            # requires to create the ./offload_folder beforehand (already done in the container)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, device_map="auto", offload_folder='/offload_folder')
         else:
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
         

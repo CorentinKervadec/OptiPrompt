@@ -63,6 +63,7 @@ LM_TYPE = {
  }
 
 LARGE_MODEL_LIST= [
+    "facebook/opt-6.7b",
     "facebook/opt-30b",
     "facebook/opt-iml-max-30b",
     "facebook/opt-66b"
