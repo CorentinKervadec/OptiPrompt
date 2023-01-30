@@ -24,7 +24,7 @@ LM_MODELS={
         'family':'opt',
         'n_p':350e6,
     },
-    "facebook/opt-1.3b":
+    "facebook/opt-1.3b": # GPU 1, BS 32
     {
         'family':'opt',
         'n_p':1.3e9,
@@ -33,6 +33,11 @@ LM_MODELS={
     {
         'family':'opt',
         'n_p':6.7e9,
+    },
+        "facebook/opt-13b":
+    {
+        'family':'opt',
+        'n_p':13e9,
     },
     "facebook/opt-30b":
     {
@@ -48,6 +53,11 @@ LM_MODELS={
     {
         'family':'opt-iml',
         'n_p':30e9,
+    },
+    "facebook/opt-iml-max-1.3b":
+    {
+        'family':'opt-iml',
+        'n_p':1.3e9,
     },
 }
 
@@ -106,6 +116,6 @@ LM_FAMILIES={
 PROMPTS={
     'LAMA_relations':{
         'type':'human',
-        'path':'./prompts/LAMA_relations.json'
+        'path':'prompts/LAMA_relations.jsonl'
     }
 }
