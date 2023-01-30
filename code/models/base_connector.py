@@ -147,17 +147,15 @@ class Base_Connector():
 
     def try_cuda(self):
 
-        if self.model in LARGE_MODEL_LIST:
-            return # already done at initialisation
-
-        """Move model to GPU if one is available."""
-        if torch.cuda.is_available():
-            if self._model_device != 'cuda':
-                print('Moving model to CUDA')
-                self._cuda()
-                self._model_device = 'cuda'
-        else:
-            print('No CUDA found')
+        if not self.model_name in LARGE_MODEL_LIST:
+            """Move model to GPU if one is available."""
+            if torch.cuda.is_available():
+                if self._model_device != 'cuda':
+                    print('Moving model to CUDA')
+                    self._cuda()
+                    self._model_device = 'cuda'
+            else:
+                print('No CUDA found')
 
     def _cuda(self):
         """Move model to GPU."""
@@ -214,6 +212,11 @@ class Base_Connector():
                 output = self.model(**input.to(self._model_device))
                 logits = output.logits
                 predict_logits = logits.masked_select(predict_mask.to(self._model_device).unsqueeze(-1)).view(logits.size(0), -1)
+                if self.model_name in LARGE_MODEL_LIST:
+                    # large models are in float16
+                    # but you have to go back to float32 to compute log_softmax
+                    predict_logits = predict_logits.float()
+                    logits = logits.float()
                 loss = self.get_loss(predict_logits, torch.tensor(mlm_label_ids).unsqueeze(-1).to(self._model_device)).mean()
                 log_probs = F.log_softmax(logits, dim=-1).cpu()
                 pred_log_probs = F.log_softmax(predict_logits, dim=-1).cpu()
