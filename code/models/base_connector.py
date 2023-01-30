@@ -28,9 +28,11 @@ TOKENIZATION = {
     "facebook/opt-350m":"bpe",
     "facebook/opt-1.3b":"bpe",
     "facebook/opt-6.7b":"bpe",
+    "facebook/opt-13b":"bpe",
     "facebook/opt-30b":"bpe",
     "facebook/opt-66b":"bpe",
     "facebook/opt-iml-max-30b":"bpe",
+    "facebook/opt-iml-max-1.3b":"bpe",
 }
 
 LM_TYPE = {
@@ -57,13 +59,16 @@ LM_TYPE = {
      "facebook/opt-350m":"causal",
      "facebook/opt-1.3b":"causal",
      "facebook/opt-6.7b":"causal",
+     "facebook/opt-11b":"causal",
      "facebook/opt-30b":"causal",
      "facebook/opt-66b":"causal",
      "facebook/opt-iml-max-30b":"causal",
+    "facebook/opt-iml-max-1.3b":"causal",
  }
 
 LARGE_MODEL_LIST= [
     "facebook/opt-6.7b",
+    "facebook/opt-13b",
     "facebook/opt-30b",
     "facebook/opt-iml-max-30b",
     "facebook/opt-66b"
