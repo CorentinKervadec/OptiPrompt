@@ -29,7 +29,7 @@ LM_MODELS={
         'family':'opt',
         'n_p':1.3e9,
     },
-    "facebook/opt-6.7b":
+    "facebook/opt-6.7b": # GPU 1, BS 32
     {
         'family':'opt',
         'n_p':6.7e9,
@@ -54,10 +54,15 @@ LM_MODELS={
         'family':'opt-iml',
         'n_p':30e9,
     },
-    "facebook/opt-iml-max-1.3b":
+    "facebook/opt-iml-max-1.3b": # GPU 1, BS 32
     {
         'family':'opt-iml',
         'n_p':1.3e9,
+    },
+    "facebook/galactica-6.7b": # GPU 1, BS 32
+    {
+        'family':'galactica',
+        'n_p':6.7e9,
     },
 }
 
@@ -110,6 +115,24 @@ LM_FAMILIES={
             'unifiedskg',
             'reasoning'
         ]
+    },
+    'galactica':
+    {
+        'type':'causal',
+        'finetuned':'',
+        'tokenizer':'bpe',
+        'pretrain-corpus':[ # corpus > 100 million tokens
+            'papers', # 88B tokens (e.g. arxiv)
+            'code', # academic github
+            'knowledge bases', # 2B tokens (e.g. pubchem coumpoumd) 
+            'wikipedia', # 5B tokens
+            'stackexchange', # 1B tokens
+            'libretext', # 185M tokens
+            'wikibooks', # 110M tokens
+            'filtered cc', # 1.1B tokens. Scientific and Academic
+            'prompts', # 358M tokens
+        ],
+        'pretrain-corpus-size':-1, # 106B tokens
     },
 }
 
