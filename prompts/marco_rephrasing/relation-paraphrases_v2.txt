@@ -1,0 +1,1041 @@
+*P1001 N-M
+S: [X] counts as a legal term in [Y]
+S: [X] is a legal term in [Y]
+S: [X] is a valid legal term in [Y]
+Q: Does [X] count as a legal term in [Y]?
+Q: Is [X] a legal term in [Y]?
+Q: Is [X] a valid legal term in [Y]?
+*P101 N-M
+S: The domain of activity of [X] is [Y]
+S: The domain of work of [X] is [Y]
+S: The expertise of [X] is [Y]
+S: [X] specializes in [Y]
+S: [X] works in the area of [Y]
+S: [X] works in the field of [Y]
+S: [X]'s area of expertise is [Y]
+S: [X]'s area of work is [Y]
+S: [X]'s domain of activity is [Y]
+S: [X]'s domain of work is [Y]
+S: [X]'s expertise is [Y]
+S: [X]'s expertise is in [Y]
+Q: Does [X] specialize in [Y]?
+Q: Does [X] work in field [Y]?
+Q: Does [X] work in the area of [Y]?
+Q: Is [X]'s expertise in [Y]?
+Q: Is [Y] [X]'s area of expertise?
+Q: Is [Y] [X]'s area of work?
+Q: Is [Y] [X]'s domain of activity?
+Q: Is [Y] [X]'s domain of work?
+Q: Is [Y] [X]'s expertise?
+Q: Is [Y] is the specialization of [X]?
+Q: Is [Y] the domain of activity of [X]?
+Q: Is [Y] the expertise of [X]?
+*P103 N-1
+S: The mother tongue of [X] is [Y]
+S: The native language of [X] is [Y]
+Q: Does [X] speak [Y] as a mother tongue?
+Q: Does [X] speak [Y] as a native language?
+Q: Is [Y] [X]'s mother tongue?
+Q: Is [Y] [X]'s native language?
+*P106 N-M
+S: The occupation of [X] is [Y]
+S: The profession of [X] is [Y]
+S: [X] works as [Y]
+S: [X]'s occupation is [Y]
+S: [X]'s occupation is a [Y]
+S: [X]'s occupation is an [Y]
+S: [X]'s profession is [Y]
+S: [X]'s profession is a [Y]
+S: [X]'s profession is an [Y]
+S: [X], who works as [Y]
+Q: Does [X] work as [Y]?
+Q: Does [X] work as a [Y]?
+Q: Is [X] a [Y] by profession?
+Q: Is [X] an [Y] by profession?
+Q: Is [Y] [X]'s occupation?
+Q: Is [Y] [X]'s profession?
+Q: Is [Y] profession of [X]?
+Q: Is [Y] the occupation of [X]?
+*P108 N-M
+S: [X] is employed by [Y]
+S: [X] works for [Y]
+S: [X], who is employed by [Y]
+S: [X], who works for [Y]
+Q: Does [X] work for [Y]?
+Q: Is [X] employed by [Y]?
+*P127 N-1
+S: [X] is owned by [Y]
+S: [X] owner [Y]
+Q: Does [Y] own [X]?
+Q: Is [X] [Y]-owned?
+Q: Is [X] owned by [Y]?
+Q: Is [Y] [X]'s owner?
+*P1303 N-M
+S: [X] plays [Y]
+S: [X] plays the [Y]
+S: [X] plays the music instrument [Y]
+Q: Does [X] play [Y]?
+Q: Does [X] play the [Y] music instrument?
+Q: Does [X] play the [Y]?
+Q: Is [X] a [Y]'s player?
+Q: Is [X] an [Y]'s player?
+Q: Is [Y] a music instrument played by [X]?
+Q: Is [Y] played by [X]?
+*P131 N-1
+S: [X] can be found in [Y]
+S: [X] is in [Y]
+S: [X] is located in [Y]
+Q: Can [X] be found in [Y]?
+Q: Is [X] in [Y]?
+Q: Is [X] located in [Y]?
+Q: Is [Y] the location of [X]?
+*P136 N-1
+S: [X] belongs to the genre [Y]
+S: [X] is a musician in [Y]
+S: [X] plays [Y]
+S: [X] plays the following genre [Y]
+S: [X] plays the following music genre [Y]
+S: [X] plays the genre [Y]
+S: [X] plays the genre of [Y]
+S: [X] plays the music genre [Y]
+S: [X] plays the music genre of [Y]
+S: [X] specializes in the genre [Y]
+S: [X], who plays [Y]
+Q: Does [X] belong to the [Y] genre?
+Q: Does [X] play [Y] music?
+Q: Does [X] play [Y]?
+Q: Does [X] play the [Y] music genre?
+Q: Does [X] specialize in the [Y] genre
+Q: Is [X] a musician playing [Y]?
+Q: Is [X] a musician playing the [Y] genre?
+Q: Is [X] a musician playing the [Y] music genre?
+Q: Is [Y] [X]'s genre?
+Q: Is [Y] [X]'s music genre?
+*P1376 1-1
+S: [X] is the capital city of [Y]
+S: [X] is the capital of [Y]
+S: [X], that is the capital city of [Y]
+S: [X], that is the capital of [Y]
+S: [X], the capital city of [Y]
+S: [X], the capital of [Y]
+Q: Is [X] [Y]'s capital city?
+Q: Is [X] [Y]'s capital?
+Q: Is [X] the capital city of [Y]?
+Q: Is [X] the capital of [Y]?
+*P138 N-1
+S: [X] is called after [Y]
+S: [X] is named after [Y]
+S: [X] is named for [Y]
+S: [X] was called after [Y]
+S: [X] was named after [Y]
+S: [X] was named for [Y]
+S: [X], called after [Y]
+S: [X], named after [Y]
+S: [X], named for [Y]
+S: [X], which is called after [Y]
+S: [X], which is named after [Y]
+S: [X], which is named for [Y]
+S: [X], which was called after [Y]
+S: [X], which was named after [Y]
+S: [X], which was named for [Y]
+Q: Is [X] called after [Y]?
+Q: Is [X] named after [Y]?
+Q: Is [X] named for [Y]?
+Q: Is [X] named in [Y]'s honor?
+Q: Was [X] called after [Y]?
+Q: Was [X] named after [Y]?
+Q: Was [X] named for [Y]?
+Q: Was [X] named in [Y]'s honor?
+*P140 N-1
+S: The religion of [X] is [Y]
+S: [X] believes in [Y]
+S: [X] is a believer of [Y]
+S: [X] is follower of [Y]
+Q: Does [X] believe in [Y]?
+Q: Does [X] follow the [Y] religion?
+Q: Is [X] a [Y] believer?
+Q: Is [X] a believer in [Y]?
+Q: Is [X] a follower of [Y]?
+Q: Is [X] affiliated with the [Y] religion?
+Q: Is [Y] [X]'s religion?
+*P1412 N-M
+S: [X] communicated in [Y]
+S: [X] communicates in [Y]
+S: [X] is a speaker of [Y]
+S: [X] speaks [Y]
+S: [X] spoke [Y]
+S: [X] used to communicate in [Y]
+Q: Did [X] communicate in [Y]?
+Q: Did [X] speak [Y]?
+Q: Did [X] use [Y] to communicate?
+Q: Did [X] use the [Y] language?
+Q: Does [X] communicate in [Y]?
+Q: Does [X] speak [Y]?
+Q: Does [X] use [Y] to communicate?
+Q: Does [X] use the [Y] language?
+Q: Is [X] a speaker of [Y]?
+Q: Is [Y] a language used by [X] to communicate?
+Q: Is [Y] a language used by [X]?
+Q: Is [Y] the language used by [X] to communicate?
+Q: Is [Y] the language used by [X]?
+Q: Was [X] a speaker of [Y]?
+Q: Was [Y] the language used by [X] to communicate?
+Q: Was [Y] the language used by [X]?
+*P159 N-1
+S: The headquarter of [X] is in [Y]
+S: The headquarter of [X] is located in [Y]
+S: The headquarters of [X] are in [Y]
+S: The headquarters of [X] are located in [Y]
+S: [X] is based in [Y]
+S: [X] is headquartered in [Y]
+S: [X] is located in [Y]
+S: [X]'s headquarters are in [Y]
+S: [X], whose headquarters are in [Y]
+Q: Are [X]'s headquarters in [Y]?
+Q: Are the headquarters of [X] in [Y]?
+Q: Are the headquarters of [X] located in [Y]?
+Q: Does [Y] contain the headquarter of [X]?
+Q: Does [Y] contain the headquarters of [X]?
+Q: Does [Y] have the headquarter of [X]?
+Q: Does [Y] have the headquarters of [X]?
+Q: Is [X] based in [Y]?
+Q: Is [X] headquartered in [Y]?
+Q: Is [X] located in [Y]?
+Q: Is [Y] home to [X]?
+Q: Is the headquarter of [X] in [Y]?
+Q: Is the headquarter of [X] located in [Y]?
+*P17 N-1
+S: The country [X] is located in is [Y]
+S: The state [X] is located in is [Y]
+S: [X] is located in [Y]
+S: [X] is located in the following country: [Y]
+S: [X] is located in the following state: [Y]
+S: [X], located in [Y]
+S: [X], which is located in [Y]
+Q: Is [X] located in [Y]?
+Q: Is [Y] [X]'s country?
+Q: Is [Y] [X]'s state?
+Q: Is [Y] the country [X] is located in?
+Q: Is [Y] the state [X] is located in?
+*P176 N-1
+S: [X] is a product of [Y]
+S: [X] is created by [Y]
+S: [X] is developed by [Y]
+S: [X] is produced by [Y]
+S: [X] was created by [Y]
+S: [X] was developed by [Y]
+S: [X] was produced by [Y]
+S: [X], a product created by [Y]
+S: [X], a product developed by [Y]
+S: [X], a product manufactured by [Y]
+S: [X], a product of [Y]
+S: [X], created by [Y]
+S: [X], developed by [Y]
+S: [X], produced by [Y]
+Q: Is [X] a product created by [Y]?
+Q: Is [X] a product developed by [Y]?
+Q: Is [X] a product manufactured by [Y]?
+Q: Is [X] a product of [Y]?
+Q: Is [X] created by [Y]?
+Q: Is [X] developed by [Y]?
+Q: Is [X] produced by [Y]?
+Q: Is [Y] the creator of [X]?
+Q: Is [Y] the creator of the [X]?
+Q: Was [X] a product created by [Y]?
+Q: Was [X] a product developed by [Y]?
+Q: Was [X] a product manufactured by [Y]?
+Q: Was [X] a product of [Y]?
+Q: Was [X] created by [Y]?
+Q: Was [X] developed by [Y]?
+Q: Was [X] produced by [Y]?
+Q: Was [Y] the creator of [X]?
+Q: Was [Y] the creator of the [X]?
+*P178 N-M
+S: [X] and its product [Y]
+S: [X] builds [Y]
+S: [X] develops [Y]
+S: [X] makes [Y]
+S: [X] manufactures [Y]
+S: [X] produces [Y]
+S: [X], that builds [Y]
+S: [X], that created [Y]
+S: [X], that developed [Y]
+S: [X], that develops [Y]
+S: [X], that makes [Y]
+S: [X], that manufactures [Y]
+S: [X], that produces [Y]
+S: [X], the creator of the [Y]
+Q: Did [X] create [Y]?
+Q: Does [X] develop [Y]?
+Q: Does [X] make [Y]?
+Q: Does [X] manufacture [Y]?
+Q: Does [X] produce [Y]?
+Q: Is [X] the creator of [Y]?
+Q: Is [X] the creator of the [Y]?
+Q: Is [Y] a product created by [X]?
+Q: Is [Y] a product developed by [X]?
+Q: Is [Y] a product manufactured by [X]?
+Q: Is [Y] a product of [X]?
+Q: Is [Y] created by [X]?
+Q: Is [Y] developed by [X]?
+Q: Is [Y] produced by [X]?
+Q: Was [X] the creator of [Y]?
+Q: Was [X] the creator of the [Y]?
+Q: Was [Y] a product created by [X]?
+Q: Was [Y] a product developed by [X]?
+Q: Was [Y] a product manufactured by [X]?
+Q: Was [Y] a product of [X]?
+Q: Was [Y] created by [X]?
+Q: Was [Y] developed by [X]?
+Q: Was [Y] produced by [X]?
+*P19 N-1
+S: The birthplace of [X] is [Y]
+S: The place of birth of [X] is [Y]
+S: [X] is native to [Y]
+S: [X] is originally from [Y]
+S: [X] originated from [Y]
+S: [X] originates from [Y]
+S: [X] was born in [Y]
+S: [X] was native to [Y]
+S: [X] was originally from [Y]
+S: [X]'s birthplace is [Y]
+S: [X]'s place of birth is [Y]
+Q: Did [X] originate from [Y]?
+Q: Does [X] originate from [Y]?
+Q: Is [X] a [Y]-born person?
+Q: Is [X] an [Y]-born person?
+Q: Is [X] native to [Y]?
+Q: Is [X] originally from [Y]?
+Q: Is [Y] [X]'s birthplace?
+Q: Is [Y] [X]'s place of birth?
+Q: Was [X] a [Y]-born person?
+Q: Was [X] an [Y]-born person?
+Q: Was [X] born in [Y]?
+Q: Was [X] native to [Y]?
+Q: Was [X] originally from [Y]?
+Q: Was [Y] [X]'s birthplace?
+Q: Was [Y] [X]'s place of birth?
+*P190 N-M
+S: [X] and its sister city [Y]
+S: [X] and its twin city [Y]
+S: [X] has sister city [Y]
+S: [X] has twin city [Y]
+S: [X] is a sister city of [Y]
+S: [X] is a twin city of [Y]
+S: [X]'s sister city is [Y]
+S: [X]'s twin city is [Y]
+Q: Are [X] and [Y] sister cities?
+Q: Are [X] and [Y] twin cities?
+Q: Are [Y] and [X] sister cities?
+Q: Are [Y] and [X] twin cities?
+Q: Does [X] have [Y] as a sister city?
+Q: Does [X] have [Y] as a twin city?
+Q: Is [X] [Y]'s sister city?
+Q: Is [X] [Y]'s twin city?
+Q: Is [X] a sister city of [Y]?
+Q: Is [X] a twin city of [Y]?
+Q: Is [X] the sister city of [Y]?
+Q: Is [X] the twin city of [Y]?
+Q: Is [Y] [X]'s sister city?
+Q: Is [Y] [X]'s twin city?
+Q: Is [Y] a sister city of [X]?
+Q: Is [Y] a twin city of [X]?
+Q: Is [Y] the sister city of [X]?
+Q: Is [Y] the twin city of [X]?
+*P20 N-1
+S: The death location of [X] is [Y]
+S: The death location of [X] was [Y]
+S: The death place of [X] is [Y]
+S: The death place of [X] was [Y]
+S: The place of death of [X] is [Y]
+S: The place of death of [X] was [Y]
+S: [X] died at [Y]
+S: [X] died in [Y]
+S: [X] expired at [Y]
+S: [X] expired in [Y]
+S: [X] lost their life at [Y]
+S: [X] passed away at [Y]
+S: [X] passed away in [Y]
+S: [X] succumbed at [Y]
+S: [X]'s life ended in [Y]
+Q: Did [X] die at [Y]?
+Q: Did [X] die in [Y]?
+Q: Did [X] expire at [Y]?
+Q: Did [X] expire in [Y]?
+Q: Did [X] lose their life at [Y]?
+Q: Did [X] lose their life in [Y]?
+Q: Did [X] pass away at [Y]?
+Q: Did [X] pass away in [Y]?
+Q: Did [X] succumb at [Y]?
+Q: Did [X] succumb in [Y]?
+Q: Did [X]'s life end at [Y]?
+Q: Did [X]'s life end in [Y]?
+Q: Is [Y] [X]'s death location?
+Q: Is [Y] [X]'s death place?
+Q: Is [Y] [X]'s place of death?
+Q: Was [Y] [X]'s death location?
+Q: Was [Y] [X]'s death place?
+Q: Was [Y] [X]'s place of death?
+*P264 N-1
+S: The music label representing [X] is [Y]
+S: The music label representing [X] was [Y]
+S: The music label that is representing [X] is [Y]
+S: The music label that represented [X] was [Y]
+S: The record label representing [X] is [Y]
+S: The record label representing [X] was [Y]
+S: The record label that is representing [X] is [Y]
+S: [X] is represented by [Y]
+S: [X] is represented by music label [Y]
+S: [X] is represented by record label [Y]
+S: [X] is signed to [Y]
+S: [X] label : [Y]
+S: [X] recorded for [Y]
+S: [X] records for [Y]
+S: [X] was issued by [Y]
+S: [X] was issued by record label [Y]
+S: [X] was published by [Y]
+S: [X] was published by record label [Y]
+S: [X] was released by [Y]
+S: [X] was released by record label [Y]
+S: [X] was represented by [Y]
+S: [X] was represented by music label [Y]
+S: [X] was represented by record label [Y]
+S: [X] was signed to [Y]
+S: [X]'s label is [Y]
+S: [X]'s label was [Y]
+S: [X]'s music label is [Y]
+S: [X]'s music label was [Y]
+S: [X]'s record company is [Y]
+S: [X]'s record company was [Y]
+S: [X]'s record label is [Y]
+S: [X]'s record label was [Y]
+S: [X], released by [Y]
+S: [X], that is represented by [Y]
+S: [X], that was represented by [Y]
+S: [X], which is represented by [Y]
+S: [X], which was represented by [Y]
+Q: Did [X] record for [Y]?
+Q: Did [Y] issue [X]?
+Q: Did [Y] publish [X]?
+Q: Did [Y] release [X]?
+Q: Did the [Y] label issue [X]?
+Q: Did the [Y] label publish [X]?
+Q: Did the [Y] label release [X]?
+Q: Did the [Y] record label issue [X]?
+Q: Did the [Y] record label publish [X]?
+Q: Did the [Y] record label release [X]?
+Q: Does [X] record for [Y]?
+Q: Is [X] a [Y] recording artist?
+Q: Is [X] an [Y] recording artist?
+Q: Is [X] represented by [Y]?
+Q: Is [X] represented by label [Y]?
+Q: Is [X] represented by music label [Y]?
+Q: Is [X] represented by record label [Y]?
+Q: Is [X] signed to [Y]?
+Q: Is [X] signed to the [Y] label?
+Q: Is [X] signed to the [Y] music label?
+Q: Is [X] signed to the [Y] record label?
+Q: Is [Y] [X]'s label?
+Q: Is [Y] [X]'s music label?
+Q: Is [Y] [X]'s record company?
+Q: Is [Y] [X]'s record label?
+Q: Is the label representing [X] [Y]?
+Q: Is the label that is representing [X] [Y]?
+Q: Is the music label representing [X] [Y]?
+Q: Is the music label that is representing [X] [Y]?
+Q: Is the record label representing [X] [Y]?
+Q: Is the record label that is representing [X] [Y]?
+Q: Was [X] a [Y] recording artist?
+Q: Was [X] an [Y] recording artist?
+Q: Was [X] issued by [Y]?
+Q: Was [X] issued by the [Y] label?
+Q: Was [X] issued by the [Y] record label?
+Q: Was [X] published by [Y]?
+Q: Was [X] published by the [Y] label?
+Q: Was [X] published by the [Y] record label?
+Q: Was [X] released by [Y]?
+Q: Was [X] released by the [Y] record label?
+Q: Was [X] represented by [Y]?
+Q: Was [X] represented by label [Y]?
+Q: Was [X] represented by music label [Y]?
+Q: Was [X] represented by record label [Y]?
+Q: Was [X] signed to [Y]?
+Q: Was [X] signed to the [Y] label?
+Q: Was [X] signed to the [Y] music label?
+Q: Was [X] signed to the [Y] record label?
+Q: Was [Y] [X]'s label?
+Q: Was [Y] [X]'s music label?
+Q: Was [Y] [X]'s record company?
+Q: Was [Y] [X]'s record label?
+Q: Was [x] released by the [Y] label?
+Q: Was the label representing [X] [Y]?
+Q: Was the label that is representing [X] [Y]?
+Q: Was the music label representing [X] [Y]?
+Q: Was the music label that is representing [X] [Y]?
+Q: Was the record label representing [X] [Y]?
+Q: Was the record label that is representing [X] [Y]?
+*P27 N-M
+S: [X] has a citizenship of [Y]
+S: [X] holds a citizenship of [Y]
+S: [X] is a citizen of [Y]
+S: [X], a citizen of [Y]
+S: [X], who has a citizenship of [Y]
+S: [X], who holds a citizenship of [Y]
+S: [X], who is a citizen of [Y]
+Q: Does [X] have [Y] citizenship?
+Q: Does [X] have a citizenship of [Y]?
+Q: Does [X] have the [Y] citizenship?
+Q: Does [X] hold a [Y] citizenship?
+Q: Does [X] hold a citizenship of [Y]?
+Q: Does [X] hold the [Y] citizenship?
+Q: Does [X] hold the citizenship of [Y]?
+Q: Is [X] a [Y] citizen?
+Q: Is [X] a citizen of [Y]?
+Q: Is [X] an [Y] citizen?
+*P30 N-1
+S: The continent of [X] is [Y]
+S: [X] belongs to continent [Y]
+S: [X] belongs to the continent of [Y]
+S: [X] is a part of continent [Y]
+S: [X] is a part of the continent [Y]
+S: [X] is a part of the continent of [Y]
+S: [X] is located in [Y]
+S: [X] is located in continent [Y]
+S: [X] is located in the continent [Y]
+Q: Does [X] belong to continent [Y]?
+Q: Does [X] belong to the continent of [Y]?
+Q: Is [X] a part of continent [Y]?
+Q: Is [X] a part of the continent [Y]?
+Q: Is [X] a part of the continent of [Y]?
+Q: Is [X] located in [Y]?
+Q: Is [X] located in continent [Y]?
+Q: Is [X] located in the [Y] continent?
+Q: Is [X] located in the continent [Y]?
+Q: Is [X] part of the [Y] continent?
+Q: Is [Y] [X]'s continent?
+Q: Is [Y] the continent of [X]?
+*P36 1-1
+S: The capital city of [X] is [Y]
+S: The capital of [X] is [Y]
+S: [X]'s capital city is [Y]
+S: [X]'s capital city, [Y]
+S: [X]'s capital is [Y]
+S: [X]'s capital, [Y]
+S: [X], which has the capital [Y]
+S: [X], which has the capital city [Y]
+S: [Y] is the capital city of [X]
+S: [Y] is the capital of [X]
+S: [Y], that is the capital city of [X]
+S: [Y], that is the capital of [X]
+S: [Y], the capital city of [X]
+S: [Y], the capital of [X]
+Q: Is [Y] [X]'s capital city?
+Q: Is [Y] [X]'s capital?
+Q: Is [Y] the capital city of [X]?
+Q: Is [Y] the capital of [X]?
+*P37 N-1
+S: Officially, [Y] is a language of [X]
+S: Officially, [Y] is the language in [X]
+S: Officially, [Y] is the language of [X]
+S: The [Y] language is an official language in [X]
+S: The [Y] language is an official language of [X]
+S: The [Y] language is the official language in [X]
+S: The [Y] language is the official language of [X]
+S: The official language in [X] is [Y]
+S: The official language of [X] is [Y]
+S: [Y] is an official language in [X]
+S: [Y] is an official language of [X]
+S: [Y] is officially spoken in [X]
+S: [Y] is the official language in [X]
+S: [Y] is the official language of [X]
+Q: Does the law in [X] declare [Y] an official language?
+Q: Does the law in [X] declare [Y] the official language?
+Q: Does the law in [X] define [Y] as an official language?
+Q: Does the law in [X] define [Y] as the official language?
+Q: Does the law in [X] define the [Y] language as an official language?
+Q: Does the law in [X] define the [Y] language as the official language?
+Q: Does the law of [X] declare [Y] an official language?
+Q: Does the law of [X] declare [Y] the official language?
+Q: Does the law of [X] define [Y] as an official language?
+Q: Does the law of [X] define [Y] as the official language?
+Q: Does the law of [X] define the [Y] language as an official language?
+Q: Does the law of [X] define the [Y] language as the official language?
+Q: Is [Y] an official language in [X]?
+Q: Is [Y] an official language of [X]?
+Q: Is [Y] officially a language of [X]?
+Q: Is [Y] officially spoken in [X]?
+Q: Is [Y] officially the language in [X]?
+Q: Is [Y] officially the language of [X]?
+Q: Is [Y] the official language in [X]?
+Q: Is [Y] the official language of [X]?
+Q: Is the [Y] language an official language in [X]?
+Q: Is the [Y] language the official language in [X]?
+Q: Is the [Y] language the official language of [X]?
+*P39 N-M
+S: [X] had the official position of [Y]
+S: [X] had the official role of [Y]
+S: [X] had the position of [Y]
+S: [X] had the public position of [Y]
+S: [X] had the public role of [Y]
+S: [X] had the role of [Y]
+S: [X] has the official position of [Y]
+S: [X] has the official role of [Y]
+S: [X] has the position of [Y]
+S: [X] has the public position of [Y]
+S: [X] has the public role of [Y]
+S: [X] has the role of [Y]
+S: [X] held the official position of [Y]
+S: [X] held the official role of [Y]
+S: [X] held the position of [Y]
+S: [X] held the public position of [Y]
+S: [X] held the public role of [Y]
+S: [X] held the role of [Y]
+S: [X] holds the official position of [Y]
+S: [X] holds the official role of [Y]
+S: [X] holds the position of [Y]
+S: [X] holds the public position of [Y]
+S: [X] holds the public role of [Y]
+S: [X] holds the role of [Y]
+S: [X] officially held the position of [Y]
+S: [X] officially held the role of [Y]
+S: [X] officially holds the position of [Y]
+S: [X] officially holds the role of [Y]
+S: [X]'s official position is [Y]
+S: [X]'s official position was [Y]
+S: [X]'s official role is [Y]
+S: [X]'s official role was [Y]
+S: [X]'s position is [Y]
+S: [X]'s position was [Y]
+S: [X]'s public position is [Y]
+S: [X]'s public position was [Y]
+S: [X]'s public role is [Y]
+S: [X]'s public role was [Y]
+S: [X]'s role is [Y]
+S: [X]'s role was [Y]
+S: [X], who had the official position of [Y]
+S: [X], who had the official role of [Y]
+S: [X], who had the position of [Y]
+S: [X], who had the public position of [Y]
+S: [X], who had the public role of [Y]
+S: [X], who had the role of [Y]
+S: [X], who has the official position of [Y]
+S: [X], who has the official role of [Y]
+S: [X], who has the position of [Y]
+S: [X], who has the public position of [Y]
+S: [X], who has the public role of [Y]
+S: [X], who has the role of [Y]
+S: [X], who held the official position of [Y]
+S: [X], who held the official role of [Y]
+S: [X], who held the position of [Y]
+S: [X], who held the public position of [Y]
+S: [X], who held the public role of [Y]
+S: [X], who held the role of [Y]
+S: [X], who holds the official position of [Y]
+S: [X], who holds the official role of [Y]
+S: [X], who holds the position of [Y]
+S: [X], who holds the public position of [Y]
+S: [X], who holds the public role of [Y]
+S: [X], who holds the role of [Y]
+S: [X], who officially held the position of [Y]
+S: [X], who officially held the role of [Y]
+S: [X], who officially holds the position of [Y]
+S: [X], who officially holds the role of [Y]
+S: [X], whose official position is that of [Y]
+S: [X], whose official position was that of [Y]
+S: [X], whose official role is that of [Y]
+S: [X], whose official role was that of [Y]
+S: [X], whose position is that of [Y]
+S: [X], whose position was that of [Y]
+S: [X], whose public position is that of [Y]
+S: [X], whose public position was that of [Y]
+S: [X], whose public role is that of [Y]
+S: [X], whose public role was that of [Y]
+S: [X], whose role is that of [Y]
+S: [X], whose role was that of [Y]
+Q: Did [X] have the [Y] position?
+Q: Did [X] have the [Y] role?
+Q: Did [X] have the official [Y] position?
+Q: Did [X] have the official [Y] role?
+Q: Did [X] have the official position of [Y]?
+Q: Did [X] have the official role of [Y]?
+Q: Did [X] have the position of [Y]?
+Q: Did [X] have the public [Y] position?
+Q: Did [X] have the public [Y] role?
+Q: Did [X] have the public position of [Y]?
+Q: Did [X] have the public role of [Y]?
+Q: Did [X] have the role of [Y]?
+Q: Did [X] hold the [Y] position?
+Q: Did [X] hold the [Y] role?
+Q: Did [X] hold the official [Y] position?
+Q: Did [X] hold the official [Y] role?
+Q: Did [X] hold the official position of [Y]?
+Q: Did [X] hold the official role of [Y]?
+Q: Did [X] hold the position of [Y]?
+Q: Did [X] hold the public [Y] position?
+Q: Did [X] hold the public [Y] role?
+Q: Did [X] hold the public position of [Y]?
+Q: Did [X] hold the public role of [Y]?
+Q: Did [X] hold the role of [Y]?
+Q: Did [X] officially hold the [Y] position?
+Q: Did [X] officially hold the [Y] role?
+Q: Did [X] officially hold the position of [Y]?
+Q: Did [X] officially hold the public [Y] position?
+Q: Did [X] officially hold the public [Y] role?
+Q: Did [X] officially hold the public position of [Y]?
+Q: Did [X] officially hold the public role of [Y]?
+Q: Did [X] officially hold the role of [Y]?
+Q: Does [X] have the [Y] position?
+Q: Does [X] have the [Y] role?
+Q: Does [X] have the official [Y] position?
+Q: Does [X] have the official [Y] role?
+Q: Does [X] have the official position of [Y]?
+Q: Does [X] have the official role of [Y]?
+Q: Does [X] have the position of [Y]?
+Q: Does [X] have the public [Y] position?
+Q: Does [X] have the public [Y] role?
+Q: Does [X] have the public position of [Y]?
+Q: Does [X] have the public role of [Y]?
+Q: Does [X] have the role of [Y]?
+Q: Does [X] hold the [Y] position?
+Q: Does [X] hold the [Y] role?
+Q: Does [X] hold the official [Y] position?
+Q: Does [X] hold the official [Y] role?
+Q: Does [X] hold the official position of [Y]?
+Q: Does [X] hold the official role of [Y]?
+Q: Does [X] hold the position of [Y]?
+Q: Does [X] hold the public [Y] position?
+Q: Does [X] hold the public [Y] role?
+Q: Does [X] hold the public position of [Y]?
+Q: Does [X] hold the public role of [Y]?
+Q: Does [X] hold the role of [Y]?
+Q: Does [X] officially hold the [Y] position?
+Q: Does [X] officially hold the [Y] role?
+Q: Does [X] officially hold the position of [Y]?
+Q: Does [X] officially hold the public [Y] position?
+Q: Does [X] officially hold the public [Y] role?
+Q: Does [X] officially hold the public position of [Y]?
+Q: Does [X] officially hold the public role of [Y]?
+Q: Does [X] officially hold the role of [Y]?
+Q: Is [X]'s official position [Y]?
+Q: Is [X]'s official position that of [Y]?
+Q: Is [X]'s official role [Y]?
+Q: Is [X]'s official role that of [Y]?
+Q: Is [X]'s position [Y]?
+Q: Is [X]'s position that of [Y]?
+Q: Is [X]'s public position [Y]?
+Q: Is [X]'s public position that of [Y]?
+Q: Is [X]'s public role [Y]?
+Q: Is [X]'s public role that of [Y]?
+Q: Is [X]'s role [Y]?
+Q: Is [X]'s role that of [Y]?
+Q: Was [X]'s official position [Y]?
+Q: Was [X]'s official position that of [Y]?
+Q: Was [X]'s official role [Y]?
+Q: Was [X]'s official role that of [Y]?
+Q: Was [X]'s position [Y]?
+Q: Was [X]'s position that of [Y]?
+Q: Was [X]'s public position [Y]?
+Q: Was [X]'s public position that of [Y]?
+Q: Was [X]'s public role [Y]?
+Q: Was [X]'s public role that of [Y]?
+Q: Was [X]'s role [Y]?
+Q: Was [X]'s role that of [Y]?
+*P47 N-M
+S: [X] borders with [Y]
+S: [X] shares a border with [Y]
+S: [X] shares a common border with [Y]
+S: [X] shares border with [Y]
+S: [X] shares borders with [Y]
+S: [X] shares its border with [Y]
+S: [X] shares its borders with [Y]
+S: [X] shares the border with [Y]
+S: [X] shares the borders with [Y]
+Q: Do [X] and [Y] have a border in common?
+Q: Do [X] and [Y] have borders in common?
+Q: Do [X] and [Y] share a border?
+Q: Do [X] and [Y] share a common border?
+Q: Do [X] and [Y] share border?
+Q: Do [X] and [Y] share borders?
+Q: Do [X] and [Y] share common borders?
+Q: Do [X] and [Y] share the border?
+Q: Do [Y] and [X] have a border in common?
+Q: Do [Y] and [X] have borders in common?
+Q: Do [Y] and [X] share a border?
+Q: Do [Y] and [X] share a common border?
+Q: Do [Y] and [X] share border?
+Q: Do [Y] and [X] share borders?
+Q: Do [Y] and [X] share common borders?
+Q: Do [Y] and [X] share the border?
+Q: Does [X] border with [Y]?
+Q: Does [X] share a border with [Y]?
+Q: Does [X] share a common border with [Y]?
+Q: Does [X] share border with [Y]?
+Q: Does [X] share borders with [Y]?
+Q: Does [X] share its border with [Y]?
+Q: Does [X] share its borders with [Y]?
+Q: Does [X] share the border with [Y]?
+Q: Does [X] share the borders with [Y]?
+Q: Does [Y] border with [X]?
+Q: Does [Y] share a border with [X]?
+Q: Does [Y] share a common border with [X]?
+Q: Does [Y] share border with [X]?
+Q: Does [Y] share borders with [X]?
+Q: Does [Y] share its border with [X]?
+Q: Does [Y] share its borders with [X]?
+Q: Does [Y] share the border with [X]?
+Q: Does [Y] share the borders with [X]?
+*P276 N-1
+S: [X] can be found in [Y]
+S: [X] is in [Y]
+S: [X] is located in [Y]
+Q: Can [X] be found in [Y]?
+Q: Is [X] in [Y]?
+Q: Is [X] located in [Y]?
+Q: Is [Y] the location of [X]?
+Q: Is [Y] the place where [X] can be found?
+*P279 N-1
+S: [X] has class [Y]
+S: [X] is a [Y]
+S: [X] is a kind of [Y]
+S: [X] is a subclass of [Y]
+S: [X] is a type of [Y]
+S: [X] is of class [Y]
+S: [X], a subclass of [Y]
+S: [X], a type of [Y]
+S: [X], which is a subclass of [Y]
+Q: Does [X] belong to the [Y] category?
+Q: Does [X] have class [Y]?
+Q: Is [X] a [Y]?
+Q: Is [X] a kind of [Y]?
+Q: Is [X] a subclass of [Y]?
+Q: Is [X] a type of [Y]?
+Q: Is [X] of class [Y]?
+Q: Is [Y] the class of [X]?
+*P361 N-1
+S: [X] is a part of [Y]
+S: [X] is part of [Y]
+Q: Does [Y] have [X] as a part?
+Q: Does [Y] have [X] as part?
+Q: Is [X] a part of [Y]?
+Q: Is [X] part of [Y]?
+*P364 N-1
+S: The language of [X] is [Y]
+S: The language of [X] was [Y]
+S: The original language of [X] is [Y]
+S: The original language of [X] was [Y]
+S: [X] was originally performed in [Y]
+S: [X] was originally performed in language [Y]
+S: [X] was originally performed in the following language: [Y]
+S: [X] was originally played in [Y]
+S: [X] was originally played in language [Y]
+S: [X] was originally played in the following language: [Y]
+Q: Is [Y] the language of [X]?
+Q: Is [Y] the original language of [X]?
+Q: Was [X] originally performed in [Y]?
+Q: Was [X] originally performed in language [Y]?
+Q: Was [X] originally performed in the [Y] language?
+Q: Was [X] originally performed in the following language: [Y]?
+Q: Was [X] originally played in [Y]?
+Q: Was [X] originally played in language [Y]?
+Q: Was [X] originally played in the [Y] language?
+Q: Was [X] originally played in the following language: [Y]?
+Q: Was [Y] the language of [X]?
+Q: Was [Y] the original language of [X]?
+*P407 N-1
+S: The language of [X] is [Y]
+S: The language of [X] was [Y]
+S: [X] is a work written in [Y]
+S: [X] is written in [Y]
+S: [X] was a work written in [Y]
+S: [X] was created in [Y]
+S: [X] was written in [Y]
+Q: Is [X] a [Y]-language work?
+Q: Is [X] a work in [Y]?
+Q: Is [X] a work in the [Y] language?
+Q: Is [X] a work written in [Y]?
+Q: Is [X] a work written in the [Y] language?
+Q: Is [X] an [Y]-language work?
+Q: Is [X] written in [Y]?
+Q: Is [X] written in the [Y] language?
+Q: Is [Y] the language of [X]?
+Q: Was [X] a [Y]-language work?
+Q: Was [X] a work in [Y]?
+Q: Was [X] a work in the [Y] language?
+Q: Was [X] a work written in [Y]?
+Q: Was [X] an [Y]-language work?
+Q: Was [X] created in [Y]?
+Q: Was [X] created in the [Y] language?
+Q: Was [X] written in [Y]?
+Q: Was [X] written in the [Y] language?
+Q: Was [Y] the language of [X]?
+*P413 N-1
+S: [X] plays as [Y]
+S: [X] plays in the position of [Y]
+S: [X]'s position is [Y]
+Q: Does [X] play in [Y] position?
+Q: Does [X] play in the position of [Y]?
+Q: Does [X] plays as [Y]?
+Q: Is [Y] [X]'s position?
+*P449 N-1
+S: [X] debuted on [Y]
+S: [X] is to debut on [Y]
+S: [X] premiered on [Y]
+S: [X] premieres on [Y]
+S: [X] was aired on [Y]
+S: [X] was originally aired on [Y]
+S: [X] was originally shown on [Y]
+S: [X] was released on [Y]
+Q: Did [X] debut on [Y]?
+Q: Did [X] premiere on [Y]?
+Q: Did [Y] debut [X]?
+Q: Did [Y] release [X]?
+Q: Does [X] premiere on [Y]?
+Q: Is [X] to debut on [Y]?
+Q: Is [Y] to debut [X]?
+Q: Was [X] aired on [Y]?
+Q: Was [X] originally aired on [Y]?
+Q: Was [X] originally shown on [Y]?
+Q: Was [X] released on [Y]?
+*P463 N-M
+S: [X] belongs to [Y]
+S: [X] belongs to the [Y]
+S: [X] belongs to the organization of [Y]
+S: [X] is a member of [Y]
+S: [X] is a member of the [Y]
+S: [X] is affiliated with [Y]
+S: [X] is part of [Y]
+Q: Does [X] belong to [Y]?
+Q: Does [X] belong to the [Y] club?
+Q: Does [X] belong to the [Y] organization?
+Q: Does [X] belong to the [Y]?
+Q: Does [X] belong to the organization of [Y]?
+Q: Does [Y] count [X] as a member?
+Q: Is [X] a member of [Y]?
+Q: Is [X] a member of the [Y]?
+Q: Is [X] a part of the [Y] organization?
+Q: Is [X] affiliated with [Y]?
+Q: Is [X] affiliated with the [Y] organization?
+Q: Is [X] part of [Y]?
+Q: Is [X] part of the [Y] club?
+Q: Is [X] part of the [Y] organization?
+*P495 N-1
+S: [X] came from [Y]
+S: [X] comes from [Y]
+S: [X] formed in [Y]
+S: [X] is from [Y]
+S: [X] originated in [Y]
+S: [X] was created in [Y]
+S: [X] was developed in [Y]
+S: [X] was first created in [Y]
+S: [X] was first made in [Y]
+S: [X] was first produced in [Y]
+S: [X] was formed in [Y]
+S: [X] was formulated in [Y]
+S: [X] was from [Y]
+S: [X], created in [Y]
+S: [X], developed in [Y]
+S: [X], formulated in [Y]
+S: [X], from [Y]
+S: [X], that originated in [Y]
+S: [X], that was created in [Y]
+S: [X], that was developed in [Y]
+S: [X], that was formed in [Y]
+S: [X], that was formulated in [Y]
+S: [X], who was from [Y]
+Q: Did [X] come from [Y]?
+Q: Did [X] form in [Y]?
+Q: Did [X] originate in [Y]?
+Q: Does [X] come from [Y]?
+Q: Does [X] originate in [Y]?
+Q: Is [X] formulated in [Y]?
+Q: Is [X] from [Y]?
+Q: Is [Y] [X]'s original country?
+Q: Is [Y] the original country of [X]?
+Q: Was [X] created in [Y]?
+Q: Was [X] developed in [Y]?
+Q: Was [X] first created in [Y]?
+Q: Was [X] first made in [Y]?
+Q: Was [X] first produced in [Y]?
+Q: Was [X] formed in [Y]?
+Q: Was [X] formulated in [Y]?
+Q: Was [X] from [Y]?
+*P530 N-M
+S: [X] has diplomatic relations with [Y]
+S: [X] has diplomatic ties with [Y]
+S: [X] holds diplomatic relations with [Y]
+S: [X] holds diplomatic ties with [Y]
+S: [X] maintains diplomatic relations with [Y]
+S: [X] ties diplomatic relations with [Y]
+S: [X], which has diplomatic relations with [Y]
+S: [X], which ties diplomatic relations with [Y]
+Q: Are [X] and [Y] in diplomatic relations?
+Q: Are [Y] and [X] in diplomatic relations?
+Q: Do [X] and [Y] have diplomatic relations?
+Q: Do [X] and [Y] have diplomatic ties?
+Q: Do [X] and [Y] hold diplomatic relations?
+Q: Do [X] and [Y] hold diplomatic ties?
+Q: Do [X] and [Y] maintain diplomatic relations?
+Q: Do [X] and [Y] maintain diplomatic ties?
+Q: Do [Y] and [X] have diplomatic relations?
+Q: Do [Y] and [X] have diplomatic ties?
+Q: Do [Y] and [X] hold diplomatic relations?
+Q: Do [Y] and [X] hold diplomatic ties?
+Q: Do [Y] and [X] maintain diplomatic relations?
+Q: Do [Y] and [X] maintain diplomatic ties?
+Q: Does [X] have diplomatic relations with [Y]?
+Q: Does [X] have diplomatic ties with [Y]?
+Q: Does [X] hold diplomatic relations with [Y]?
+Q: Does [X] hold diplomatic ties with [Y]?
+Q: Does [X] maintain diplomatic relations with [Y]?
+Q: Does [X] tie diplomatic relations with [Y]?
+Q: Does [Y] have diplomatic relations with [X]?
+Q: Does [Y] have diplomatic ties with [X]?
+Q: Does [Y] hold diplomatic relations with [X]?
+Q: Does [Y] hold diplomatic ties with [X]?
+Q: Does [Y] maintain diplomatic relations with [X]?
+Q: Does [Y] tie diplomatic relations with [X]?
+*P740 N-1
+S: [X] formed in [Y]
+S: [X] originated in [Y]
+S: [X] started in [Y]
+S: [X] that was founded in [Y]
+S: [X] was created in [Y]
+S: [X] was formed in [Y]
+S: [X] was founded in [Y]
+S: [X] was started in [Y]
+S: [X], created in [Y]
+S: [X], founded in [Y]
+S: [X], that originated in [Y]
+S: [X], that was created in [Y]
+S: [X], that was formed in [Y]
+S: [X], that was started in [Y]
+Q: Did [X] form in [Y]?
+Q: Did [X] originate in [Y]?
+Q: Did [X] start in [Y]?
+Q: Was [X] created in [Y]?
+Q: Was [X] formed in [Y]?
+Q: Was [X] founded in [Y]?
+Q: Was [X] started in [Y]?
+*P937 N-M
+S: [X] found employment in [Y]
+S: [X] is employed in [Y]
+S: [X] took up work in [Y]
+S: [X] used to work in [Y]
+S: [X] was employed in [Y]
+S: [X] worked in [Y]
+S: [X] works in [Y]
+Q: Did [X] find employment in [Y]?
+Q: Did [X] take up work in [Y]?
+Q: Did [X] use to work in [Y]?
+Q: Did [X] work in [Y]?
+Q: Does [X] work in [Y]?
+Q: Is [X] employed in [Y]?
+Q: Is [Y] [X]'s employment location?
+Q: Is [Y] [X]'s location of employment?
+Q: Is [Y] [X]'s work location?
+Q: Is [Y] where [X] is employed?
+Q: Is [Y] where [X] was employed?
+Q: Was [X] employed in [Y]?
+Q: Was [Y] [X]'s employment location?
+Q: Was [Y] [X]'s location of employment?
+Q: Was [Y] [X]'s work location?
