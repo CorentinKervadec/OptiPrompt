@@ -27,6 +27,7 @@ def read_paraphrase(filename):
     # iterate over lines
     current_relation = ''
     current_type = ''
+    cpt_id = 0
     for l in lines:
         l = l.replace('\n', '')
         if l[0]=='*': # Relation name
@@ -34,13 +35,16 @@ def read_paraphrase(filename):
             rephrase_dic[current_relation] = {'type': current_type}
             rephrase_dic[current_relation]['templates'] = []
             rephrase_dic[current_relation]['format'] = []
+            rephrase_dic[current_relation]['tmplt_id'] = [] # unique id to differentiate templates
             rephrase_dic[current_relation]['micro'] = [] # score / will be filled during evaluation
         elif l[0]=='#': # Description
             rephrase_dic[current_relation]['description'] = l[2:]
         elif l[0] in ['S', 'Q']:
             rephrase_dic[current_relation]['templates'].append(l[3:])
             rephrase_dic[current_relation]['format'].append(l[0])
+            rephrase_dic[current_relation]['tmplt_id'].append(f'id{cpt_id}')
             rephrase_dic[current_relation]['micro'].append(-1) # will be filled during evaluation
+            cpt_id += 1 # increase id count
 
     return rephrase_dic
         
@@ -104,10 +108,14 @@ if __name__ == "__main__":
     for relation in os.listdir(args.test_data_dir):
 
         relation = relation.split(".")[0]
-        print("RELATION {}".format(relation))
+        print("-----RELATION {}".format(relation))
 
         # get rephrased templates for the given relation
-        rephrase_list = rephrase_dic[relation]['templates']
+        try:
+            rephrase_list = rephrase_dic[relation]['templates']
+        except KeyError:
+            logger.info(f"Relation {relation} has no rephrase. Next")
+            continue
 
         # iterate on rephrased templates
         for idx, template in enumerate(rephrase_list):
@@ -127,9 +135,10 @@ if __name__ == "__main__":
         os.makedirs(output_dir , exist_ok=True)
 
         with open(os.path.join(output_dir, relation+'.tsv'), 'w') as f:
-            f.write('format,template,micro\n')
+            f.write('id\tformat\ttemplate\tmicro\n')
             for idx, template in enumerate(rephrase_dic[relation]['templates']):
                 micro = rephrase_dic[relation]['micro'][idx]
                 format = rephrase_dic[relation]['format'][idx]
-                line = f'{format}\t{template}\t{micro}\n'
+                tempid = rephrase_dic[relation]['tmplt_id'][idx]
+                line = f'{tempid}\t{format}\t{template}\t{micro}\n'
                 f.write(line)
