@@ -34,12 +34,12 @@ LM_MODELS={
         'family':'opt',
         'n_p':6.7e9,
     },
-        "facebook/opt-13b":
+        "facebook/opt-13b": # GPU 2, BS 32
     {
         'family':'opt',
         'n_p':13e9,
     },
-    "facebook/opt-30b":
+    "facebook/opt-30b": # GPU 4, BS 32
     {
         'family':'opt',
         'n_p':30e9,
@@ -49,7 +49,7 @@ LM_MODELS={
         'family':'opt',
         'n_p':66e9,
     },
-    "facebook/opt-iml-max-30b":
+    "facebook/opt-iml-max-30b": # GPU 4, BS 32
     {
         'family':'opt-iml',
         'n_p':30e9,
@@ -63,6 +63,11 @@ LM_MODELS={
     {
         'family':'galactica',
         'n_p':6.7e9,
+    },
+    "facebook/galactica-30b": # GPU 4, BS 32
+    {
+        'family':'galactica',
+        'n_p':30e9,
     },
 }
 
