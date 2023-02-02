@@ -4,7 +4,19 @@ import os
 # Put the different datafiles here:
 datadic = {
     'facebook/opt-350m':{
-        'dir':'output/relation-paraphrases_v2/facebook_opt-350m',
+        'dir':'experiments/results/select-template-facebook-opt-350m.268080/relation-paraphrases_v2/facebook_opt-350m',
+    },
+    'facebook/opt-1.3b':{
+        'dir':'experiments/results/select-template-facebook-opt-1.3b.268081/relation-paraphrases_v2/facebook_opt-1.3b'
+    },
+    'facebook/opt-6.7b':{
+        'dir':'experiments/results/select-template-facebook-opt-6.7b.268082/relation-paraphrases_v2/facebook_opt-6.7b'
+    },
+    'facebook/opt-iml-max-1.3b':{
+        'dir':'experiments/results/select-template-facebook-opt-iml-max-1.3b.268083/relation-paraphrases_v2/facebook_opt-iml-max-1.3b'
+    },
+    'gpt2-xl':{
+        'dir':'experiments/results/select-template-gpt2-xl.268079/relation-paraphrases_v2/gpt2-xl'
     },
 }
 output='prompts/marco_rephrasing'
