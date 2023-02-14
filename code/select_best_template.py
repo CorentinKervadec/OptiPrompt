@@ -51,10 +51,10 @@ def read_paraphrase(filename):
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help='the huggingface model name')
 parser.add_argument('--output_dir', type=str, default='output', help='the output directory to store prediction results')
-parser.add_argument('--common_vocab_filename', type=str, default='common_vocab_cased.txt', help='common vocabulary of models (used to filter triples)')
+parser.add_argument('--common_vocab_filename', type=str, default='/data/vocab/common_vocab_opt_probing_prompts.txt', help='common vocabulary of models (used to filter triples)')
 parser.add_argument('--prompt_file', type=str, default='prompts/marco_rephrasing/relation-paraphrases_v2.txt', help='file containing rephrased prompts')
 
-parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA")
+parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA_opt")
 parser.add_argument('--eval_batch_size', type=int, default=32)
 
 parser.add_argument('--seed', type=int, default=6)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
             logger.info(f'[{relation}] Template: {template}')
 
             # evaluate the rephrased template on the data test
-            test_data = os.path.join(args.test_data_dir, relation + ".jsonl")
+            test_data = os.path.join(args.test_data_dir, relation, "test.jsonl")
             eval_samples = load_data(test_data, template, vocab_subset=vocab_subset, mask_token=model.MASK)
             eval_samples_batches, eval_sentences_batches = batchify(eval_samples, args.eval_batch_size * n_gpu)
             micro, _ = evaluate(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)

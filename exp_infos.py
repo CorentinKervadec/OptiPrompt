@@ -19,6 +19,26 @@ LM_MODELS={
         'family':'gpt2',
         'n_p':1.5e9,
     },
+    "roberta-base":
+    {
+        'family':'roberta',
+        'n_p':125e6,
+    },
+    "roberta-large":
+    {
+        'family':'roberta',
+        'n_p':335e6,
+    },
+    "bert-large-cased":
+    {
+        'family':'bert',
+        'n_p':340e6,
+    },
+    "t5-large":
+    {
+        'family':'t5',
+        'n_p':770e6,
+    },
     "facebook/opt-350m":
     {
         'family':'opt',
@@ -68,6 +88,11 @@ LM_MODELS={
     {
         'family':'galactica',
         'n_p':30e9,
+    },
+    "facebook/bart-large":
+    {
+        'family':'bart',
+        'n_p':400e6,
     },
 }
 
@@ -141,9 +166,3 @@ LM_FAMILIES={
     },
 }
 
-PROMPTS={
-    'LAMA_relations':{
-        'type':'human',
-        'path':'prompts/LAMA_relations.jsonl'
-    }
-}

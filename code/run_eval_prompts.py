@@ -19,10 +19,10 @@ def init_template(prompt_file, relation):
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help='the huggingface model name')
 parser.add_argument('--output_dir', type=str, default='output', help='the output directory to store prediction results')
-parser.add_argument('--common_vocab_filename', type=str, default='common_vocab_cased.txt', help='common vocabulary of models (used to filter triples)')
+parser.add_argument('--common_vocab_filename', type=str, default='data/vocab/common_vocab_opt_probing_prompts.txt', help='common vocabulary of models (used to filter triples)')
 parser.add_argument('--prompt_file', type=str, default='prompts/LAMA_relations.jsonl', help='prompt file containing 41 relations')
 
-parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA")
+parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA_opt")
 parser.add_argument('--eval_batch_size', type=int, default=32)
 
 parser.add_argument('--seed', type=int, default=6)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         template = init_template(args.prompt_file, relation)
         logger.info('Template: %s'%template)
 
-        test_data = os.path.join(args.test_data_dir, relation + ".jsonl")
+        test_data = os.path.join(args.test_data_dir, relation, "test.jsonl")
         eval_samples = load_data(test_data, template, vocab_subset=vocab_subset, mask_token=model.MASK)
         eval_samples_batches, eval_sentences_batches = batchify(eval_samples, args.eval_batch_size * n_gpu)
         evaluate(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=output_dir if args.output_predictions else None)
