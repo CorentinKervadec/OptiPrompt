@@ -120,7 +120,7 @@ if __name__ == "__main__":
     else:
         relation_list=[r for r in args.relation.split(',')]
 
-    for relation in RELATIONS_TEST:
+    for relation in relation_list:
         relation = relation.split(".")[0]
         print("RELATION {}".format(relation))
 
