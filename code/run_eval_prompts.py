@@ -72,6 +72,7 @@ parser.add_argument('--output_predictions', default=True, help='whether to outpu
 parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
 parser.add_argument('--output_all_log_probs', action="store_true", help='whether to output all the log probabilities')
+parser.add_argument('--relation', type=str, default='all', help='which relation to evaluate.')
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -113,6 +114,11 @@ if __name__ == "__main__":
 
     if args.output_all_log_probs:
         model.k = len(vocab_subset)
+
+    if args.relation=='all':
+        relation_list = RELATIONS_TEST
+    else:
+        relation_list=[r for r in args.relation.split(',')]
 
     for relation in RELATIONS_TEST:
         relation = relation.split(".")[0]
