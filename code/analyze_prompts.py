@@ -20,6 +20,10 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+SENSIBILITY_TRESHOLD=0
+TRIGGER_TRESHOLD_FREQ_RATE=0.2
+
+
 RELATIONS_TEST = [
     "P1001",
     "P101",
@@ -185,22 +189,21 @@ if __name__ == "__main__":
             eval_samples_batches, eval_sentences_batches = batchify(eval_samples, args.eval_batch_size * n_gpu)
             micro, result, fc1_act = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=output_dir if args.output_predictions else None)
             
-            all_fc1_act[relation][prompt_file.split('/')[-1]]=fc1_act
-
             rl_2_nbfacts[relation]=torch.tensor(sum([len(batch) for batch in eval_samples_batches]))
+            # directly store the binary tensor of activated neurons to save memory
+            all_fc1_act[relation][prompt_file.split('/')[-1]]=compute_freq_sensibility(select_pred_masked_act(fc1_act),SENSIBILITY_TRESHOLD)
 
     # Now compare prompt (we reduce on the tkn dimension, taking into account the padding mask)
     # Predict token only
     # take fc1_act for the predicted token accross all batch
-    predict_fc1_act = {rl:{prmpt:select_pred_masked_act(res) for prmpt,res in values.items()} for rl,values in all_fc1_act.items()}
+    # predict_fc1_act = {rl:{prmpt:select_pred_masked_act(res) for prmpt,res in values.items()} for rl,values in all_fc1_act.items()}
     # Measure fc1_1 sensibility accross fact (we obtain one vector per relation)
-    SENSIBILITY_TRESHOLD=0
-    predict_fc1_act_sens_freq = {rl:{prmpt:compute_freq_sensibility(res, SENSIBILITY_TRESHOLD) for prmpt,res in values.items()} for rl,values in predict_fc1_act.items()}
+    # predict_fc1_act_sens_freq = {rl:{prmpt:compute_freq_sensibility(res, SENSIBILITY_TRESHOLD) for prmpt,res in values.items()} for rl,values in predict_fc1_act.items()}
     
     # -----------------------------
     # Control check:
     #  plot the number of activated neurons against the frequency treshold
-    predict_fc1_act_count = {rl:{prmpt:count_activated_neurons(res,torch.logspace(start=0,end=torch.log2(rl_2_nbfacts[rl]), steps=10, base=2)) for prmpt,res in values.items()} for rl,values in predict_fc1_act_sens_freq.items()}
+    predict_fc1_act_count = {rl:{prmpt:count_activated_neurons(res,torch.logspace(start=0,end=torch.log2(rl_2_nbfacts[rl]), steps=10, base=2)) for prmpt,res in values.items()} for rl,values in all_fc1_act.items()}
     # To dataframe
     df = pd.concat([pd.concat([pd.concat([pd.DataFrame(count, columns=['Ratio']).assign(Layer = layer) for layer,count in res.items()]).assign(Prompt = prmpt[:20]) for prmpt,res in values.items()]).assign(Relation = rl) for rl,values in predict_fc1_act_count.items()])
     df = df.reset_index().rename(columns = {'index':'Treshold'})
@@ -225,20 +228,20 @@ if __name__ == "__main__":
     # -----------------------------
 
     # Measure activation overlap between prompts
-    TRIGGER_TRESHOLD_FREQ_RATE=0.2
     TRIGGER_TRESHOLD_FREQ=lambda x: rl_2_nbfacts[x]*TRIGGER_TRESHOLD_FREQ_RATE
-    predict_fc1_triggered = {rl:{prmpt:find_triggered_neurons(res,TRIGGER_TRESHOLD_FREQ(rl)) for prmpt,res in values.items()} for rl,values in predict_fc1_act_sens_freq.items()}
-    predict_triggered_overlap = {rl:{prmpt_A:{prmpt_B:{l:((res_B[l]==res_A[l]).sum()/res_B[l].size(-1)).item() for l in res_B} for prmpt_B, res_B in values.items()} for prmpt_A,res_A in values.items()} for rl,values in predict_fc1_triggered.items()}
+    predict_fc1_triggered = {rl:{prmpt:find_triggered_neurons(res,TRIGGER_TRESHOLD_FREQ(rl)) for prmpt,res in values.items()} for rl,values in all_fc1_act.items()}
+    predict_triggered_overlap = {rl:{prmpt_A:{prmpt_B:{l:(torch.mul(res_B[l],res_A[l]).sum()/res_A[l].sum()).item() for l in res_B} for prmpt_B, res_B in values.items()} for prmpt_A,res_A in values.items()} for rl,values in predict_fc1_triggered.items()}
     df = pd.concat([pd.concat([pd.concat([pd.concat([pd.DataFrame([overlap], columns=['Overlap']).assign(Layer = layer) for layer,overlap in res_B.items()]).assign(Prompt_B = prmpt_B[:20]) for prmpt_B,res_B in res_A.items()]).assign(Prompt_A = prmpt_A[:20]) for prmpt_A,res_A in values.items()]).assign(Relation = rl) for rl,values in predict_triggered_overlap.items()])
     # Adapted when there is many different prompts. But not convenient for dealing with layers
     fig = plt.figure()
     fg = sns.FacetGrid(df, col='Layer', row='Relation')
-    fg.map_dataframe(draw_heatmap, 'Prompt_A', 'Prompt_B', 'Overlap')
+    fg.map_dataframe(draw_heatmap, 'Prompt_A', 'Prompt_B', 'Overlap', vmin=0.0, vmax=1.0)
     plt.suptitle(f"Sensibility: {SENSIBILITY_TRESHOLD} / Trigger treshold rate: {TRIGGER_TRESHOLD_FREQ_RATE}")
     plt.savefig(os.path.join(args.output_dir,'fc1_overlap.png'), dpi=fig.dpi)
     # Adapted to compare few prompts accross relation and layers
     fg = sns.FacetGrid(df, col='Prompt_A', row='Prompt_B')
-    fg.map_dataframe(draw_heatmap, 'Layer', 'Relation', 'Overlap', vmin=0.7, vmax=1.0)
+    fg.map_dataframe(draw_heatmap, 'Layer', 'Relation', 'Overlap', vmin=0.0, vmax=1.0)
     plt.suptitle(f"Sensibility: {SENSIBILITY_TRESHOLD} / Trigger treshold rate: {TRIGGER_TRESHOLD_FREQ_RATE}")
     plt.tight_layout()
     plt.savefig(os.path.join(args.output_dir,'fc1_overlap_2.png'), dpi=fig.dpi)
+
