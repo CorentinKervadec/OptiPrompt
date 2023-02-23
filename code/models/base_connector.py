@@ -370,7 +370,7 @@ class Base_Connector():
 
     def save_fc1_act_hook(self, layer) -> Callable:
         def fn(_, __, output):
-            self.fc1_output[layer] = output.detach()
+            self.fc1_output[layer] = output.detach().cpu()
         return fn
 
     def get_fc1_act(self):
