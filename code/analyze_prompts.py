@@ -210,7 +210,7 @@ if __name__ == "__main__":
              hue="Layer", col="Prompt", row="Relation", data=df,facet_kws=dict(sharex=False),)
     # sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
     # plt.tight_layout()
-    plt.savefig('count_activate.png', dpi=fig.dpi)
+    plt.savefig(os.path.join(args.output_dir,'count_activate.png'), dpi=fig.dpi)
 
     # Correlation of activation accross prompts
     # fig = plt.figure()
@@ -235,10 +235,10 @@ if __name__ == "__main__":
     fg = sns.FacetGrid(df, col='Layer', row='Relation')
     fg.map_dataframe(draw_heatmap, 'Prompt_A', 'Prompt_B', 'Overlap')
     plt.suptitle(f"Sensibility: {SENSIBILITY_TRESHOLD} / Trigger treshold rate: {TRIGGER_TRESHOLD_FREQ_RATE}")
-    plt.savefig('fc1_overlap.png', dpi=fig.dpi)
+    plt.savefig(os.path.join(args.output_dir,'fc1_overlap.png'), dpi=fig.dpi)
     # Adapted to compare few prompts accross relation and layers
     fg = sns.FacetGrid(df, col='Prompt_A', row='Prompt_B')
     fg.map_dataframe(draw_heatmap, 'Layer', 'Relation', 'Overlap', vmin=0.7, vmax=1.0)
     plt.suptitle(f"Sensibility: {SENSIBILITY_TRESHOLD} / Trigger treshold rate: {TRIGGER_TRESHOLD_FREQ_RATE}")
     plt.tight_layout()
-    plt.savefig('fc1_overlap_2.png', dpi=fig.dpi)
+    plt.savefig(os.path.join(args.output_dir,'fc1_overlap_2.png'), dpi=fig.dpi)
