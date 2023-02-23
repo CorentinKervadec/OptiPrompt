@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import pandas as pd
+from typing import Callable
+import torch
 
 TOKENIZATION = {
     "roberta-base":"bpe",
@@ -89,10 +91,6 @@ class Base_Connector():
         self.vocab = None
         # This defines where the device where the model is. Changed by try_cuda.
         self._model_device = 'cpu'
-
-    def enable_output_hidden_states(self):
-        self.config.output_hidden_states=True
-
 
     def optimize_top_layer(self, vocab_subset):
         """
@@ -199,7 +197,7 @@ class Base_Connector():
     
     def run_batch(self, sentences_list, samples_list, try_cuda=True, training=True, filter_indices=None, index_list=None, vocab_to_common_vocab=None):
         
-        self.model.config.output_hidden_states=True
+        # self.model.config.output_hidden_states=True
 
         if try_cuda and torch.cuda.device_count() > 0:
             self.try_cuda()
@@ -271,3 +269,109 @@ class Base_Connector():
                     preds.append(0)
                             
             return log_probs, cor, tot, preds, topk, loss, common_vocab_loss 
+
+    """
+    Define function and hook used to extract and anaylse hidden features of the LM
+    using pytorch hooks. Can slow down the inference and increase memory reauirements.
+    """
+
+    def run_batchanal(self, sentences_list, samples_list, try_cuda=True, training=True, filter_indices=None, index_list=None, vocab_to_common_vocab=None):
+        
+        # self.model.config.output_hidden_states=True
+
+        if try_cuda and torch.cuda.device_count() > 0:
+            self.try_cuda()
+
+        input, masked_indices_list, labels_tensor, mlm_label_ids, predict_mask = self.get_input_tensors_batch_train(sentences_list, samples_list)
+
+        self.model.eval()
+        with torch.no_grad():
+            output = self.model(**input.to(self._model_device))
+            logits = output.logits
+            predict_logits = logits.masked_select(predict_mask.to(self._model_device).unsqueeze(-1)).view(logits.size(0), -1)
+            if self.model_name in LARGE_MODEL_LIST:
+                # large models are in float16
+                # but you have to go back to float32 to compute log_softmax
+                predict_logits = predict_logits.float()
+                logits = logits.float()
+            loss = self.get_loss(predict_logits, torch.tensor(mlm_label_ids).unsqueeze(-1).to(self._model_device)).mean()
+            log_probs = F.log_softmax(logits, dim=-1).cpu()
+            pred_log_probs = F.log_softmax(predict_logits, dim=-1).cpu()
+
+        # Get fc1 activation, take the mask into account
+        fc1_act = self.get_fc1_act()
+        act_mask = input['attention_mask'].bool()
+        batch_size, n_tokens = act_mask.shape
+        fc1_dim = list(fc1_act.values())[0].shape[-1]
+        # redim fc1_act, hoping that it will not cause any misordered issues
+        fc1_act = {
+            'activations':{
+                l:h.view(batch_size, n_tokens, fc1_dim)
+                for l,h in fc1_act.items()},
+            'input_mask': act_mask,
+            'predict_mask':predict_mask}
+             
+
+        # During testing, return accuracy and top-k predictions
+        tot = log_probs.shape[0]
+        cor = 0
+        preds = []
+        topk = []
+        common_vocab_loss = []
+
+        for i in range(log_probs.shape[0]):
+            masked_index = masked_indices_list[i][0]
+            #log_prob = log_probs[i][masked_index]
+            log_prob = pred_log_probs[i]
+            mlm_label = mlm_label_ids[i]
+            if filter_indices is not None:
+                log_prob = log_prob.index_select(dim=0, index=filter_indices)
+                pred_common_vocab = torch.argmax(log_prob)
+                pred = index_list[pred_common_vocab]
+
+                # get top-k predictions
+                topk_preds = []
+                topk_log_prob, topk_ids = torch.topk(log_prob, self.k)
+                for log_prob_i, idx in zip(topk_log_prob, topk_ids):
+                    ori_idx = index_list[idx]
+                    token = self.vocab[ori_idx]
+                    topk_preds.append({'token': token, 'log_prob': log_prob_i.item()})
+                topk.append(topk_preds)
+
+                # compute entropy on common vocab
+                common_logits = logits[i][masked_index].cpu().index_select(dim=0, index=filter_indices)
+                common_log_prob = -F.log_softmax(common_logits, dim=-1)
+                common_label_id = vocab_to_common_vocab[mlm_label]
+                common_vocab_loss.append(common_log_prob[common_label_id].item())
+            else:
+                pred = torch.argmax(log_prob)
+                topk.append([])
+            if pred == labels_tensor[i][masked_index]:
+                cor += 1
+                preds.append(1)
+            else:
+                preds.append(0)
+                        
+        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act
+
+    def enable_output_hidden_states(self):
+        self.config.output_hidden_states=True
+
+    def set_analyse_mode(self):
+
+        layers = self.model.model.decoder.layers
+        self.fc1_output={layer: torch.empty(0) for layer in layers}
+
+        # Setting a hook for saving FFN intermediate output
+        for layer in layers:
+            for name, sub_layer in layer.named_modules():
+                if name == 'fc1':
+                    sub_layer.register_forward_hook(self.save_fc1_act_hook(layer))
+
+    def save_fc1_act_hook(self, layer) -> Callable:
+        def fn(_, __, output):
+            self.fc1_output[layer] = output.detach()
+        return fn
+
+    def get_fc1_act(self):
+        return self.fc1_output

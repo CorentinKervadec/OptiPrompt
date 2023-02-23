@@ -103,11 +103,13 @@ def evaluate(model, samples_batches, sentences_batches, filter_indices=None, ind
     list_of_predictions = {}
     eval_loss = 0.0
     common_eval_loss = 0.0
+
     for i in tqdm(range(len(samples_batches))):
         samples_b = samples_batches[i]
         sentences_b = sentences_batches[i]
 
         log_probs, cor_b, tot_b, pred_b, topk_preds, loss, common_vocab_loss = model.run_batch(sentences_b, samples_b, training=False, filter_indices=filter_indices, index_list=index_list, vocab_to_common_vocab=vocab_to_common_vocab)
+        
         cor_all += cor_b
         tot_all += tot_b
 
@@ -140,6 +142,62 @@ def evaluate(model, samples_batches, sentences_batches, filter_indices=None, ind
 
     micro, macro = output_result(result, eval_loss)
     return micro, result
+
+def analyze(model, samples_batches, sentences_batches, filter_indices=None, index_list=None, output_topk=None):
+    vocab_to_common_vocab = None
+    if index_list is not None:
+        vocab_to_common_vocab = {}
+        for cid, idx in enumerate(index_list):
+            vocab_to_common_vocab[idx] = cid
+
+    cor_all = 0
+    tot_all = 0
+    result = {}
+    list_of_predictions = {}
+    eval_loss = 0.0
+    common_eval_loss = 0.0
+    accu_fc1_act = []
+
+    for i in tqdm(range(len(samples_batches))):
+        samples_b = samples_batches[i]
+        sentences_b = sentences_batches[i]
+
+        log_probs, cor_b, tot_b, pred_b, topk_preds, loss, common_vocab_loss, fc1_act = model.run_batchanal(sentences_b, samples_b, training=False, filter_indices=filter_indices, index_list=index_list, vocab_to_common_vocab=vocab_to_common_vocab)
+        
+        accu_fc1_act.append(fc1_act)
+
+        cor_all += cor_b
+        tot_all += tot_b
+
+        for pred, sample, topk, vocab_loss in zip(pred_b, samples_b, topk_preds, common_vocab_loss):
+            rel = sample['predicate_id']
+            if rel not in result:
+                result[rel] = (0, 0, 0, 0.0)
+                list_of_predictions[rel] = []
+            cor, tot, _, rel_tot_loss = result[rel]
+            tot += 1
+            cor += pred
+            rel_tot_loss += vocab_loss
+            result[rel] = (cor, tot, cor / tot if tot > 0 else 0.0, rel_tot_loss)
+            list_of_predictions[rel].append({
+                'uuid': sample['uuid'],
+                'relation': sample['predicate_id'],
+                'sub_label': sample['sub_label'],
+                'obj_label': sample['obj_label'],
+                'masked_sentences': sample['input_sentences'],
+                'topk': topk,
+            })
+        
+        eval_loss += loss.item() * tot_b
+    
+    if output_topk is not None:
+        logger.info('Output top-k prediction to %s..'%output_topk)
+        for rel in list_of_predictions:
+            with open(os.path.join(output_topk, '%s.jsonl'%rel), 'w') as f:
+                f.write('\n'.join([json.dumps(x) for x in list_of_predictions[rel]]))
+
+    micro, macro = output_result(result, eval_loss)
+    return micro, result, accu_fc1_act
 
 def gen_feature_sample(data_sample, template, mask_token='[MASK]'):
     feature_sample = {}

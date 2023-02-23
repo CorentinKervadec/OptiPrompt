@@ -101,9 +101,6 @@ if __name__ == "__main__":
 
     model = build_model_by_name(args)
 
-    # Turn model.config.output_hidden_states on to get access to hidden states
-    model.enable_output_hidden_states()
-
     if args.common_vocab_filename is not None:
         vocab_subset = load_vocab(args.common_vocab_filename)
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
