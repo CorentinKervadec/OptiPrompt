@@ -61,7 +61,10 @@ class CausalLM(Base_Connector):
         if try_cuda:
             self.try_cuda()
         # Replace the added [MASK] token with EOS token to make embeddings work
-        sentences_list = [self.tokenizer.eos_token + item for sublist in sentences_list for item in sublist]
+        if 'opt' in self.model_name:
+            sentences_list = [item for sublist in sentences_list for item in sublist]
+        else:
+            sentences_list = [self.tokenizer.eos_token + item for sublist in sentences_list for item in sublist]
         input = self.tokenizer(sentences_list, padding=True, return_tensors="pt").input_ids
         masked_indices_list = np.argwhere(input.numpy() == self.tokenizer.mask_token_id)[:,1] - 1 
         masked_indices_list = [[i] for i in masked_indices_list]
