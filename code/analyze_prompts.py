@@ -1,5 +1,9 @@
 import torch
 import os
+import argparse
+import pickle
+import logging
+import random
 import numpy as np
 
 from utils import get_relation_meta
@@ -10,6 +14,8 @@ import matplotlib.pyplot as plt
 
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+
+from models import build_model_by_name
 
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA, TruncatedSVD
@@ -356,3 +362,130 @@ def reduce_proj(df, x, z, sl, c, title, algo, use_symbols=True):
     fig.update_layout(paper_bgcolor="LightSteelBlue")
 
     return fig
+
+
+if __name__ == "__main__":
+
+    sns.set(font_scale=1.0)
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+                        datefmt='%m/%d/%Y %H:%M:%S',
+                        level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help='the huggingface model name')
+    parser.add_argument('--output_dir', type=str, default='/Users/corentk/ALiEN/Prompting_prompts/source_code/OptiPrompt/analyze', help='the output directory to store prediction results')
+    parser.add_argument('--common_vocab_filename', type=str, default='../data/vocab/common_vocab_opt_probing_prompts.txt', help='common vocabulary of models (used to filter triples)')
+
+    parser.add_argument('--test_data_dir', type=str, default="../data/filtered_LAMA_opt")
+    parser.add_argument('--eval_batch_size', type=int, default=32)
+
+    parser.add_argument('--seed', type=int, default=6)
+    parser.add_argument('--output_predictions', default=True, help='whether to output top-k predictions')
+    parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
+    parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
+    parser.add_argument('--output_all_log_probs', action="store_true", help='whether to output all the log probabilities')
+
+    parser.add_argument('--prompt_files', type=str, default='../prompts/marco_rephrasing/relation-paraphrases_v2.txt,../prompts/LAMA_relations.jsonl,data/prompts/my-autoprompt-filter-causal-facebook-opt-350m_seed0.jsonl', help='prompt file separated by coma')
+    parser.add_argument('--relation', type=str, default='all', help='which relation to evaluate.')
+
+    args = parser.parse_args()
+
+    
+    SENSIBILITY_TRESHOLD=0
+    TRIGGER_TRESHOLD_FREQ_RATE=0.2
+
+    RELATIONS_TEST = [
+        "P1001",
+        "P101",
+        "P103",
+        "P106",
+        "P108",
+        "P127",
+        "P1303",
+        "P131",
+        "P136",
+        "P1376",
+        "P138",
+        "P140",
+        "P1412",
+        "P159",
+        "P17",
+        "P176",
+        "P178",
+        "P19",
+        "P190",
+        "P20",
+        "P264",
+        "P27",
+        "P276",
+        "P279",
+        "P30",
+        "P36",
+        "P361",
+        "P364",
+        "P37",
+        "P39",
+        "P407",
+        "P413",
+        "P449",
+        "P463",
+        "P47",
+        "P495",
+        "P530",
+        "P740",
+        "P937",
+    ]
+
+    # Initialize GPUs
+    device=torch.device(args.device)
+    if args.device == 'cuda':
+        n_gpu = torch.cuda.device_count()
+        if n_gpu == 0:
+            logger.warning('No GPU found! exit!')
+        logger.info('# GPUs: %d'%n_gpu)
+
+    elif args.device == 'mps':
+        n_gpu = 1
+    else:
+        logger.info('# Running on CPU')
+        n_gpu = 0
+
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    if torch.cuda.device_count() > 1:
+        torch.cuda.manual_seed_all(args.seed)
+
+    model = build_model_by_name(args)
+
+    # Turn on the analyse mode
+    model.set_analyse_mode()
+
+    if args.common_vocab_filename is not None:
+        vocab_subset = load_vocab(args.common_vocab_filename)
+        logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
+        filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
+    else:
+        filter_indices = None
+        index_list = None
+
+    if args.output_all_log_probs:
+        model.k = len(vocab_subset)
+
+    if args.relation=='all':
+        relation_list = RELATIONS_TEST
+    else:
+        relation_list=[r for r in args.relation.split(',')]
+
+    # read prompt files
+    all_prompt_files = args.prompt_files.split(',')
+
+    filename = f"fc1_data_{args.model_name.split('/')[-1]}_t{SENSIBILITY_TRESHOLD}_rephrase.pickle"
+    
+    all_fc1_act = run_fc1_extract(
+        model, all_prompt_files, relation_list, logger, args.test_data_dir, filter_indices,
+        index_list, vocab_subset, args.eval_batch_size * n_gpu, SENSIBILITY_TRESHOLD)
+
+    with open(os.path.join(args.output_dir, filename),"wb") as f:
+        pickle.dump(all_fc1_act,f)
