@@ -299,12 +299,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    PROMPT_FILES="/data/prompts/marco_rephrasing/relation-paraphrases_v2.txt"
-    PROMPT_FILES += ",/data/prompts/my-autoprompt-filter-causal-facebook-opt-350m_seed0.jsonl"
-    PROMPT_FILES += ",/data/prompts/my-autoprompt-no-filter-causal-facebook-opt-350m_seed0.jsonl"
-    for i in range(1,9):
-        PROMPT_FILES += ","+f"/data/prompts/my-autoprompt-filter-causal-fixeos-facebook-opt-350m_see{i}d.jsonl"
-        PROMPT_FILES += ","+f"/data/prompts/my-autoprompt-no-filter-causal-fixeos-facebook-opt-350m_see{i}d.jsonl"
     
     SENSIBILITY_TRESHOLD=0
     TRIGGER_TRESHOLD_FREQ_RATE=0.2
@@ -393,7 +387,7 @@ if __name__ == "__main__":
         relation_list=[r for r in args.relation.split(',')]
 
     # read prompt files
-    all_prompt_files = PROMPT_FILES.split(',')
+    all_prompt_files = args.prompt_files.split(',')
 
     filename = f"fc1_data_{args.model_name.split('/')[-1]}_t{SENSIBILITY_TRESHOLD}_rephrase.pickle"
     
