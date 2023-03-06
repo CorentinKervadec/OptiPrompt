@@ -1,5 +1,6 @@
 import torch
 import os
+import numpy as np
 
 from utils import get_relation_meta
 from utils import load_vocab, load_data, batchify, analyze, get_relation_meta
@@ -9,6 +10,10 @@ import matplotlib.pyplot as plt
 
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA, TruncatedSVD
+from plotly.validators.scatter.marker import SymbolValidator
 
 
 """
@@ -264,4 +269,90 @@ def clustermap_average(df, x, y, z, avg):
         pivot,
         col_cluster=False)
     
+    return fig
+
+def reduce_proj(df, x, z, sl, c, title, algo, use_symbols=True):
+
+    # Create figure
+    fig = go.Figure()
+
+    n = 2
+
+    if algo == 'tsne':
+        proj = TSNE(n_components=n, random_state=0, perplexity=3.0)
+    elif algo == 'pca':
+        proj = PCA(n_components=n,)
+    elif algo == 'tsvd':
+        proj = TruncatedSVD(n_components=n,)
+
+    df = df[[x,z,sl,c]]
+    # df = df.set_index(x)
+    # print(df[z].to_numpy())
+
+    steps=[]
+
+    # Add traces, one for each slider step
+    for i,l in enumerate(df[sl].unique()):
+        df_layer = df[df[sl]==l]
+        # pivot = df_layer.pivot(index=x, columns=y, values=z)
+        
+        features = np.stack(df_layer[z].to_numpy())
+        projections = proj.fit_transform(features)
+        explained = proj.explained_variance_ratio_ if algo != 'tsne' else [0]
+        labels = df_layer[x]
+        if use_symbols:
+            symbols = [SymbolValidator().values[4*sb] for sb in range(len(labels))]
+        else:
+            symbols = SymbolValidator().values[0]
+
+        fig.add_trace(
+            go.Scatter(
+            x=projections[:,0],
+            y=projections[:,1],
+            # z=projections[:,2],
+            mode='markers',
+            marker=dict(
+                color=df_layer[c],
+                size=16,#df_layer[sz],
+                symbol=symbols,
+                cmax=100,
+                cmin=0,
+                colorbar=dict(
+                    title="Colorbar"
+                ),
+                colorscale="Viridis"
+            ),
+            
+            # marker_color=list(range(len(labels))),
+            text=labels,
+            visible=False)
+        )
+        fig.update_traces(textposition='top center')
+
+        step = dict(
+            method="update",
+            label=l,
+            args=[{"visible": [False] * len(df[sl].unique())},
+                {"title": title + f' | {sl}: {l} | e: ' + ','.join(['d%d: %.2f '%(k,x) for k,x in enumerate(explained)])}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    # Make 1st trace visible
+    fig.data[0].visible = True
+      
+    sliders = [dict(
+        active=0,
+        currentvalue={"prefix": f"{sl}: "},
+        pad={"t": 50},
+        steps=steps,
+        transition= {'duration': 300, 'easing': 'cubic-in-out'},
+    )]
+
+    fig.update_layout(
+        sliders=sliders
+    )
+
+    fig.update_layout(paper_bgcolor="LightSteelBlue")
+
     return fig
