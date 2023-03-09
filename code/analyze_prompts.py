@@ -198,6 +198,10 @@ def heatmap_slider(df, x, y, z, s, z_scale, title):
 
     fig.update_layout(paper_bgcolor="LightSteelBlue")
 
+    fig.update_layout(title=title,
+                  width=1000,
+                  height=1000,)
+
     return fig
 
 def scatter_slider(df, x, y, title):
@@ -364,7 +368,10 @@ def reduce_proj(df, x, z, sl, c, sb, title, algo, n, size=16,
 
         labels = df_layer[x]
 
-        symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down']
+        symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down', \
+                        'triangle-left', 'triangle-right', 'triangle-ne', 'triangle-se', 'triangle-sw', \
+                        'triangle-nw', 'pentagon', 'hexagon', 'hexagon2', 'octagon']
+        symbol_types += [s+'-open' for s in symbol_types]
         symb_dic = {k:symbol_types[u] for u,k in enumerate(df_layer[sb].unique())}
         symbols = [symb_dic[k] for k in df_layer[sb]]
 
