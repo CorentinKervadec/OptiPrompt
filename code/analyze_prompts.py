@@ -10,16 +10,21 @@ from utils import get_relation_meta
 from utils import load_vocab, load_data, batchify, analyze, get_relation_meta
 
 import seaborn as sns
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import matplotlib  
 
-# import plotly.figure_factory as ff
-# import plotly.graph_objects as go
+
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.validators.scatter.marker import SymbolValidator
+
 
 from models import build_model_by_name
 
-# from sklearn.manifold import TSNE
-# from sklearn.decomposition import PCA, TruncatedSVD
-# from plotly.validators.scatter.marker import SymbolValidator
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA, TruncatedSVD
+from umap import UMAP
 
 """
 Template utils
@@ -195,6 +200,49 @@ def heatmap_slider(df, x, y, z, s, z_scale, title):
 
     return fig
 
+def scatter_slider(df, x, y, title):
+    # Create figure
+    fig = go.Figure()
+
+    steps=[]
+
+    # Add traces, one for each slider step
+    for i,l in enumerate(df[s].unique()):
+        df_layer=df[df[s]==l]
+        fig.add_trace(
+            go.Scatter(
+                x=df_layer[x],
+                y=df_layer[y],
+                mode='markers',
+                visible=False))
+        step = dict(
+            method="update",
+            label=l,
+            args=[{"visible": [False] * len(df[s].unique())},
+                {"title": title + f' | {s}: {l}'}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    # Make 1st trace visible
+    fig.data[0].visible = True
+      
+    sliders = [dict(
+        active=0,
+        currentvalue={"prefix": f"{s}: "},
+        pad={"t": 50},
+        steps=steps,
+        transition= {'duration': 300, 'easing': 'cubic-in-out'},
+    )]
+
+    fig.update_layout(
+        sliders=sliders
+    )
+
+    fig.update_layout(paper_bgcolor="LightSteelBlue")
+
+    return fig
+
 def heatmap_pairs_button(df, x, y, z, pA, pB, z_scale, title):
 
     # Create figure
@@ -276,21 +324,28 @@ def clustermap_average(df, x, y, z, avg):
     
     return fig
 
-def reduce_proj(df, x, z, sl, c, title, algo, use_symbols=True):
+def get_colors():
+    hex_colors_only = []
+    for name, hex in matplotlib.colors.cnames.items():
+        hex_colors_only.append(hex)
+    return hex_colors_only
+
+def reduce_proj(df, x, z, sl, c, sb, title, algo, n, size=16,
+                 n_neighbors=3.0, discrete_colors=False):
 
     # Create figure
     fig = go.Figure()
 
-    n = 2
-
     if algo == 'tsne':
-        proj = TSNE(n_components=n, random_state=0, perplexity=3.0)
+        proj = TSNE(n_components=n, init='pca', random_state=0, perplexity=n_neighbors)
     elif algo == 'pca':
         proj = PCA(n_components=n,)
     elif algo == 'tsvd':
         proj = TruncatedSVD(n_components=n,)
+    elif algo == 'umap':
+        proj = UMAP(n_components=n, init='random', random_state=0, n_neighbors=n_neighbors)
 
-    df = df[[x,z,sl,c]]
+    df = df[[x,z,sl,c,sb]]
     # df = df.set_index(x)
     # print(df[z].to_numpy())
 
@@ -299,46 +354,66 @@ def reduce_proj(df, x, z, sl, c, title, algo, use_symbols=True):
     # Add traces, one for each slider step
     for i,l in enumerate(df[sl].unique()):
         df_layer = df[df[sl]==l]
+
         # pivot = df_layer.pivot(index=x, columns=y, values=z)
         
         features = np.stack(df_layer[z].to_numpy())
         projections = proj.fit_transform(features)
-        explained = proj.explained_variance_ratio_ if algo != 'tsne' else [0]
-        labels = df_layer[x]
-        if use_symbols:
-            symbols = [SymbolValidator().values[4*sb] for sb in range(len(labels))]
-        else:
-            symbols = SymbolValidator().values[0]
 
-        fig.add_trace(
-            go.Scatter(
-            x=projections[:,0],
-            y=projections[:,1],
-            # z=projections[:,2],
+        explained = proj.explained_variance_ratio_ if algo == 'pca' else [0]
+
+        labels = df_layer[x]
+
+        symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down']
+        symb_dic = {k:symbol_types[u] for u,k in enumerate(df_layer[sb].unique())}
+        symbols = [symb_dic[k] for k in df_layer[sb]]
+
+        if discrete_colors:
+            hx_colors = get_colors()
+            discrete_palette={r:hx_colors[k] for k,r in enumerate(df_layer[c].unique())}
+            color_setting = {
+                'color': [discrete_palette[r] for r in df_layer[c]],
+            }
+        else:
+            color_setting = {
+                'color': df_layer[c],
+                'cmax': 100,
+                'cmin': 0,
+                'colorbar': dict(
+                        title="Colorbar"
+                    ),
+                'colorscale': "Viridis",
+            }
+
+        args=dict(
             mode='markers',
             marker=dict(
-                color=df_layer[c],
-                size=16,#df_layer[sz],
+                size=size,#df_layer[sz],
                 symbol=symbols,
-                cmax=100,
-                cmin=0,
-                colorbar=dict(
-                    title="Colorbar"
-                ),
-                colorscale="Viridis"
+                **color_setting
             ),
-            
-            # marker_color=list(range(len(labels))),
             text=labels,
             visible=False)
-        )
+
+        if n == 2:
+            fig.add_trace(go.Scatter(
+                x=projections[:,0],
+                y=projections[:,1],
+                **args))
+        if n == 3:
+            fig.add_trace(go.Scatter3d(
+                x=projections[:,0],
+                y=projections[:,1],
+                z=projections[:,2],
+                **args))
+
         fig.update_traces(textposition='top center')
 
         step = dict(
             method="update",
             label=l,
             args=[{"visible": [False] * len(df[sl].unique())},
-                {"title": title + f' | {sl}: {l} | e: ' + ','.join(['d%d: %.2f '%(k,x) for k,x in enumerate(explained)])}],  # layout attribute
+                {"title": title + f' {algo} | {sl}: {l} | e: ' + ','.join(['d%d: %.2f '%(k,x) for k,x in enumerate(explained)])}],  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)
@@ -362,6 +437,50 @@ def reduce_proj(df, x, z, sl, c, title, algo, use_symbols=True):
 
     return fig
 
+
+def scatter_slider(df, x, y, s, t, title):
+    # Create figure
+    fig = go.Figure()
+
+    steps=[]
+
+    # Add traces, one for each slider step
+    for i,l in enumerate(df[s].unique()):
+        df_layer=df[df[s]==l]
+        fig.add_trace(
+            go.Scatter(
+                x=df_layer[x],
+                y=df_layer[y],
+                mode='markers',
+                text=df_layer[t],
+                visible=False))
+        step = dict(
+            method="update",
+            label=l,
+            args=[{"visible": [False] * len(df[s].unique())},
+                {"title": title + f' | {s}: {l}'}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        steps.append(step)
+
+    # Make 1st trace visible
+    fig.data[0].visible = True
+      
+    sliders = [dict(
+        active=0,
+        currentvalue={"prefix": f"{s}: "},
+        pad={"t": 50},
+        steps=steps,
+        transition= {'duration': 300, 'easing': 'cubic-in-out'},
+    )]
+
+    fig.update_layout(
+        sliders=sliders
+    )
+
+    fig.update_layout(paper_bgcolor="LightSteelBlue")
+
+    return fig
 
 def levenshtein(s1, s2):
 
