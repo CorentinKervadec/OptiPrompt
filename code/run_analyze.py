@@ -34,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
-LOAD_FC1=["../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-filter.pickle",
+LOAD_FC1=["../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-filter.pickle",]
         #   "../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-no-filter.pickle",
-          "../data/fc1/fc1_ppl_data_opt-350m_t0_rephrase.pickle"]
+        #   "../data/fc1/fc1_ppl_data_opt-350m_t0_rephrase.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()

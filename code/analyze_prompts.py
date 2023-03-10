@@ -69,6 +69,7 @@ Extract fc1 activations with a forward pass on the model
 def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_dir, filter_indices, index_list,
                     vocab_subset, batch_size, sensibility_treshold,):
     all_fc1_act = []
+    template_preds = {}
     rl_2_nbfacts = {} 
     prompt2template = {prompt.split('/')[-1]:{rel:"" for rel in relation_list} for prompt in all_prompt_files}
 
@@ -106,13 +107,13 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                     layer = l,
                     micro = micro,
                     ppl = ppl.mean().item(),
-                    preds = preds,
                     nb_facts = torch.tensor(sum([len(batch) for batch in eval_samples_batches])),
                     sensibility_treshold = sensibility_treshold,
                     sensibility = compute_freq_sensibility(masked_act_l,sensibility_treshold))
                         for l, masked_act_l in select_pred_masked_act(fc1_act).items()]
+                template_preds[template]=preds
 
-    return all_fc1_act#, rl_2_nbfacts, prompt2template
+    return all_fc1_act, template_preds
         
 """
 Handling fc1 data
@@ -461,7 +462,7 @@ def scatter_slider(df, x, y, s, t, c, sb, title):
         symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down', \
                         'triangle-left', 'triangle-right', 'triangle-ne', 'triangle-se', 'triangle-sw', \
                         'triangle-nw', 'pentagon', 'hexagon', 'hexagon2', 'octagon']
-        symbol_types += [s+'-open' for s in symbol_types]
+        symbol_types += [symb+'-open' for symb in symbol_types]
         symb_dic = {k:symbol_types[u] for u,k in enumerate(df_layer[sb].unique())}
         symbols = [symb_dic[k] for k in df_layer[sb]]
         # color
@@ -650,10 +651,11 @@ if __name__ == "__main__":
 
     filename = f"fc1_data_{args.model_name.split('/')[-1]}_t{SENSIBILITY_TRESHOLD}_rephrase.pickle"
     
-    all_fc1_act = run_fc1_extract(
+    all_fc1_act, template_preds = run_fc1_extract(
         model, all_prompt_files, relation_list, logger, args.test_data_dir, filter_indices,
         index_list, vocab_subset, args.eval_batch_size * n_gpu, SENSIBILITY_TRESHOLD)
 
     print("Saving fc1 activitaion into ", filename)
+    data = {'fc1': all_fc1_act, 'preds': template_preds}
     with open(os.path.join(args.output_dir, filename),"wb") as f:
-        pickle.dump(all_fc1_act,f)
+        pickle.dump(data,f)

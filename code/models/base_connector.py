@@ -350,7 +350,7 @@ class Base_Connector():
             else:
                 pred = torch.argmax(log_prob)
                 topk.append([])
-            accu_pred += [pred.item(),]
+            accu_pred += [pred,]
             if pred == labels_tensor[i][masked_index]:
                 cor += 1
                 preds.append(1)
