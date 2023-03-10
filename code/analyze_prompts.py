@@ -9,22 +9,22 @@ import numpy as np
 from utils import get_relation_meta
 from utils import load_vocab, load_data, batchify, analyze, get_relation_meta
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib  
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+# import matplotlib  
 
 
-import plotly.figure_factory as ff
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.validators.scatter.marker import SymbolValidator
+# import plotly.figure_factory as ff
+# import plotly.graph_objects as go
+# import plotly.express as px
+# from plotly.validators.scatter.marker import SymbolValidator
 
 
 from models import build_model_by_name
 
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA, TruncatedSVD
-from umap import UMAP
+# from sklearn.manifold import TSNE
+# from sklearn.decomposition import PCA, TruncatedSVD
+# from umap import UMAP
 
 """
 Template utils
@@ -646,5 +646,5 @@ if __name__ == "__main__":
         index_list, vocab_subset, args.eval_batch_size * n_gpu, SENSIBILITY_TRESHOLD)
 
     print("Saving fc1 activitaion into ", filename)
-    # with open(os.path.join(args.output_dir, filename),"wb") as f:
-    #     pickle.dump(all_fc1_act,f)
+    with open(os.path.join(args.output_dir, filename),"wb") as f:
+        pickle.dump(all_fc1_act,f)
