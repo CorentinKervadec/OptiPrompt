@@ -9,9 +9,9 @@ import numpy as np
 from utils import get_relation_meta
 from utils import load_vocab, load_data, batchify, analyze, get_relation_meta
 
-# import seaborn as sns
-# import matplotlib.pyplot as plt
-# import matplotlib  
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib  
 
 
 # import plotly.figure_factory as ff
