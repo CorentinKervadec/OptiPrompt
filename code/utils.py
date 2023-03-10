@@ -3,6 +3,7 @@ import os
 from tqdm import tqdm
 import sys
 import logging
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -157,14 +158,15 @@ def analyze(model, samples_batches, sentences_batches, filter_indices=None, inde
     eval_loss = 0.0
     common_eval_loss = 0.0
     accu_fc1_act = []
-
+    accu_ppl = []
     for i in tqdm(range(len(samples_batches))):
         samples_b = samples_batches[i]
         sentences_b = sentences_batches[i]
 
-        log_probs, cor_b, tot_b, pred_b, topk_preds, loss, common_vocab_loss, fc1_act = model.run_batchanal(sentences_b, samples_b, training=False, filter_indices=filter_indices, index_list=index_list, vocab_to_common_vocab=vocab_to_common_vocab)
+        log_probs, cor_b, tot_b, pred_b, topk_preds, loss, common_vocab_loss, fc1_act, ppl = model.run_batchanal(sentences_b, samples_b, training=False, filter_indices=filter_indices, index_list=index_list, vocab_to_common_vocab=vocab_to_common_vocab)
         
         accu_fc1_act.append(fc1_act)
+        accu_ppl.append(ppl)
 
         cor_all += cor_b
         tot_all += tot_b
@@ -196,8 +198,9 @@ def analyze(model, samples_batches, sentences_batches, filter_indices=None, inde
             with open(os.path.join(output_topk, '%s.jsonl'%rel), 'w') as f:
                 f.write('\n'.join([json.dumps(x) for x in list_of_predictions[rel]]))
 
+    accu_ppl = torch.concat(accu_ppl, dim=0)
     micro, macro = output_result(result, eval_loss)
-    return micro, result, accu_fc1_act
+    return micro, result, accu_fc1_act, accu_ppl
 
 def gen_feature_sample(data_sample, template, mask_token='[MASK]'):
     feature_sample = {}

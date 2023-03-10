@@ -10,6 +10,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
+import json
 
 from transformers import AutoTokenizer
 from transformers import AutoModelForCausalLM
@@ -79,6 +80,24 @@ def cos_sim(A,B):
         B_mag = np.sqrt(np.sum(np.square(B)))
         dist = (A_dot_B / (A_mag * B_mag))
         return dist
+
+def load_file(filename):
+    data = []
+    with open(filename, "r") as f:
+        for line in f.readlines():
+            data.append(json.loads(line))
+    return data
+
+def load_pred(prompt, relation):
+    prompt = prompt.split('.')[0]
+    samples = load_file(os.path.join('./data/eval/', prompt, 'facebook_opt-350m/%s.jsonl'%(relation)))
+    # make sure that samples are in the same order
+    pred = [s["topk"][0]["token"] for s in samples]
+    return pred
+
+def compute_agreement(pred_A, pred_B):
+    score = float(sum([a==b for a,b in zip(pred_A, pred_B)]))/float(len(pred_A))
+    return score
 
 if __name__ == "__main__":
 
@@ -175,6 +194,12 @@ if __name__ == "__main__":
     del input_rep
     df_overlap['d_in'] = [cos_sim(input_rep_dic[tA], input_rep_dic[tB]) for tA, tB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
+    # measure difference in prediction -- from the output file
+    # load pred
+    pred_dict = {p:{r:load_pred(p,r) for r in df_sensibility['relation'].unique()} for p in df_sensibility['prompt'].unique()}
+    # compute d_out = agreement
+    df_overlap['d_out'] = [compute_agreement(pred_dict[pA][r], pred_dict[pB][r]) for pA, pB, r in zip(df_overlap['prompt_A'], df_overlap['prompt_B'], df_overlap['relation'])]
+
     # ---------------------
     #   PLOTS
     # ---------------------
@@ -208,21 +233,56 @@ if __name__ == "__main__":
         x='overlap',
         y='d_in',
         s='layer',
+        c='relation',
         t='name',
         title=f"Overlap vs. input cosine (all relations)",)
 
     fig.show()
     fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_in.html'))
 
-    for r in unique_relations:
-        df_rel = df_overlap[df_overlap['relation']==r]
+    # for r in unique_relations:
+    #     df_rel = df_overlap[df_overlap['relation']==r]
         
-        fig = scatter_slider(
-        df_rel,
+    #     fig = scatter_slider(
+    #     df_rel,
+    #     x='overlap',
+    #     y='d_in',
+    #     s='layer',
+    #     c='relation',
+    #     t='name',
+    #     title=f"[{r}] Overlap vs. input cosine",)
+    #     fig.show()
+    #     fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_in_{r}.html'))
+
+
+    """
+    Display distance in prediction vs. neural overlap
+    """
+
+    fig = scatter_slider(
+        df_overlap,
         x='overlap',
-        y='d_in',
+        y='d_out',
         s='layer',
+        c='relation',
         t='name',
-        title=f"[{r}] Overlap vs. input cosine",)
-        fig.show()
-        fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_in_{r}.html'))
+        title=f"Overlap vs. agreement (all relations)",)
+
+    fig.show()
+    fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_out.html'))
+
+    """
+    Display distance in prediction vs. distance in the OPT input embedding space
+    """
+
+    fig = scatter_slider(
+        df_overlap,
+        x='d_in',
+        y='d_out',
+        s='layer',
+        c='relation',
+        t='name',
+        title=f"Input cosine vs. agreement (all relations)",)
+
+    fig.show()
+    fig.write_html(os.path.join('..',args.output_dir,f'fc1_out_vs_in.html'))

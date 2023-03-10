@@ -94,7 +94,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                 test_data = os.path.join(test_data_dir, relation, "test.jsonl")
                 eval_samples = load_data(test_data, template, vocab_subset=vocab_subset, mask_token=model.MASK)
                 eval_samples_batches, eval_sentences_batches = batchify(eval_samples, batch_size)
-                micro, result, fc1_act = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)
+                micro, result, fc1_act, ppl = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)
                 
                 # rl_2_nbfacts[relation]=torch.tensor(sum([len(batch) for batch in eval_samples_batches]))
                 # directly store the binary tensor of activated neurons to save memory
@@ -105,6 +105,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                     template = template,
                     layer = l,
                     micro = micro,
+                    ppl = ppl.mean().item(),
                     nb_facts = torch.tensor(sum([len(batch) for batch in eval_samples_batches])),
                     sensibility_treshold = sensibility_treshold,
                     sensibility = compute_freq_sensibility(masked_act_l,sensibility_treshold))
@@ -142,6 +143,7 @@ def count_activated_neurons(act, interval):
 def find_triggered_neurons(count, treshold):
     triggered = torch.gt(count,treshold)
     return triggered
+
 """
 Plot utils
 """
@@ -445,7 +447,7 @@ def reduce_proj(df, x, z, sl, c, sb, title, algo, n, size=16,
     return fig
 
 
-def scatter_slider(df, x, y, s, t, title):
+def scatter_slider(df, x, y, s, t, c, title):
     # Create figure
     fig = go.Figure()
 
@@ -454,12 +456,22 @@ def scatter_slider(df, x, y, s, t, title):
     # Add traces, one for each slider step
     for i,l in enumerate(df[s].unique()):
         df_layer=df[df[s]==l]
+        # color
+        hx_colors = get_colors()
+        discrete_palette={r:hx_colors[k] for k,r in enumerate(df_layer[c].unique())}
+        color_setting = {
+            'color': [discrete_palette[r] for r in df_layer[c]],
+        }
+        # scatter
         fig.add_trace(
             go.Scatter(
                 x=df_layer[x],
                 y=df_layer[y],
                 mode='markers',
                 text=df_layer[t],
+                marker=dict(
+                    **color_setting
+                ),
                 visible=False))
         step = dict(
             method="update",
@@ -634,5 +646,5 @@ if __name__ == "__main__":
         index_list, vocab_subset, args.eval_batch_size * n_gpu, SENSIBILITY_TRESHOLD)
 
     print("Saving fc1 activitaion into ", filename)
-    with open(os.path.join(args.output_dir, filename),"wb") as f:
-        pickle.dump(all_fc1_act,f)
+    # with open(os.path.join(args.output_dir, filename),"wb") as f:
+    #     pickle.dump(all_fc1_act,f)

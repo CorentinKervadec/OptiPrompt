@@ -270,6 +270,7 @@ class Base_Connector():
                             
             return log_probs, cor, tot, preds, topk, loss, common_vocab_loss 
 
+
     """
     Define function and hook used to extract and anaylse hidden features of the LM
     using pytorch hooks. Can slow down the inference and increase memory reauirements.
@@ -310,6 +311,8 @@ class Base_Connector():
                 for l,h in fc1_act.items()},
             'input_mask': act_mask,
             'predict_mask':predict_mask}
+        # Get PPL
+        ppl = self.get_perplexity(logits, input.input_ids)
              
 
         # During testing, return accuracy and top-k predictions
@@ -352,7 +355,7 @@ class Base_Connector():
             else:
                 preds.append(0)
                         
-        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act
+        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl
 
     def enable_output_hidden_states(self):
         self.config.output_hidden_states=True
@@ -375,3 +378,28 @@ class Base_Connector():
 
     def get_fc1_act(self):
         return self.fc1_output
+    
+    def nll(self, logits, label_ids):
+        label_ids = label_ids.unsqueeze(-1)
+        predict_logp = F.log_softmax(logits, dim=-1)
+        target_logp = predict_logp.gather(-1, label_ids)
+        return -target_logp.squeeze()
+
+    def shift_batch_tensor(self, t, mask_token):
+        return torch.concat([t[:,1:], torch.full_like(t[:,0], mask_token).unsqueeze(-1)], dim=1)
+
+    def get_perplexity(self, logits, input_ids):
+        # targets are the shifted input_ids
+        target_ids = input_ids.clone()
+        # target_ids = torch.where(target_ids==pad_token, mask_token, target_ids) # ignore padding tokens
+
+        target_ids = self.shift_batch_tensor(target_ids, self.tokenizer.pad_token_id)
+        
+        mask = 1 * target_ids.eq(self.tokenizer.pad_token_id) # 1 means the position has to be masked
+        
+        loss = self.nll(logits, target_ids)
+        # mask padding tokens + average over valid tokens
+        loss = (loss * (1-mask)).sum(-1) / (1-mask).sum(-1)
+
+        ppl = torch.exp(loss).to('cpu')
+        return ppl
