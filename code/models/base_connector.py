@@ -321,6 +321,7 @@ class Base_Connector():
         preds = []
         topk = []
         common_vocab_loss = []
+        accu_pred = []
 
         for i in range(log_probs.shape[0]):
             masked_index = masked_indices_list[i][0]
@@ -349,13 +350,14 @@ class Base_Connector():
             else:
                 pred = torch.argmax(log_prob)
                 topk.append([])
+            accu_pred += [pred.item(),]
             if pred == labels_tensor[i][masked_index]:
                 cor += 1
                 preds.append(1)
             else:
                 preds.append(0)
                         
-        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl
+        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl, accu_pred
 
     def enable_output_hidden_states(self):
         self.config.output_hidden_states=True

@@ -34,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
-LOAD_FC1=["../data/fc1/fc1_data_opt-350m_t0_autoprompt-filter.pickle",]
-        #   "../data/fc1/fc1_data_opt-350m_t0_autoprompt-no-filter.pickle",
-        #   "../data/fc1/fc1_data_opt-350m_t0_rephrase.pickle"]
+LOAD_FC1=["../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-filter.pickle",
+        #   "../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-no-filter.pickle",
+          "../data/fc1/fc1_ppl_data_opt-350m_t0_rephrase.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -128,6 +128,17 @@ if __name__ == "__main__":
     unique_relations = set(d['relation'] for d in all_fc1_act)
     unique_prompt = set(d['prompt'] for d in all_fc1_act)
     unique_layer = set(d['layer'] for d in all_fc1_act)
+    # Prompt name
+    def get_type(prompt):
+        if 'paraphrase' in prompt:
+            return 'paraphrase'
+        elif 'autoprompt-filter' in prompt:
+            return 'autoprompt-filter'
+        elif 'autoprompt-no-filter' in prompt:
+            return 'autoprompt-no-filter'
+    [d.update({
+        'type':get_type(d['prompt'])
+    }) for d in all_fc1_act]
     # Add activated count
     [d.update({
         'count':count_activated_neurons(
@@ -148,7 +159,7 @@ if __name__ == "__main__":
         'prompt_A':d_A['prompt'],
         'prompt_B':d_B['prompt'],
         'layer': l,
-        'overlap':(torch.mul(d_B['triggered'],d_A['triggered']).sum()/d_A['triggered'].sum()).item()}
+        'overlap':(torch.mul(d_B['triggered'],d_A['triggered']).sum()/(d_B['triggered']+d_A['triggered']).sum()).item()}
             for d_B in all_fc1_act if d_B['relation']==rel and d_B['layer']==l]
                 for d_A in all_fc1_act if d_A['relation']==rel and d_A['layer']==l]
                     for l in unique_layer]
@@ -160,13 +171,14 @@ if __name__ == "__main__":
         columns=['relation', 'prompt', 'template', 'layer', 'count', 'treshold'])
     df_sensibility = pd.DataFrame(
         data=all_fc1_act,
-        columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro'])
+        columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'type'])
     df_sensibility['sensibility'] = df_sensibility['sensibility'].apply(
             lambda l: [x.item() for x in l]
         )
     df_sensibility['micro'] = df_sensibility['micro'].apply(
             lambda x: x*100
         )
+    df_sensibility['log_ppl'] = np.log(df_sensibility['ppl'])
     df_overlap = pd.DataFrame(
         data=predict_triggered_overlap,
         columns=['relation', 'template_A','template_B','prompt_A','prompt_B','layer','overlap'])
@@ -194,11 +206,11 @@ if __name__ == "__main__":
     del input_rep
     df_overlap['d_in'] = [cos_sim(input_rep_dic[tA], input_rep_dic[tB]) for tA, tB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
-    # measure difference in prediction -- from the output file
-    # load pred
-    pred_dict = {p:{r:load_pred(p,r) for r in df_sensibility['relation'].unique()} for p in df_sensibility['prompt'].unique()}
-    # compute d_out = agreement
-    df_overlap['d_out'] = [compute_agreement(pred_dict[pA][r], pred_dict[pB][r]) for pA, pB, r in zip(df_overlap['prompt_A'], df_overlap['prompt_B'], df_overlap['relation'])]
+    # # measure difference in prediction -- from the output file
+    # # load pred
+    # pred_dict = {p:{r:load_pred(p,r) for r in df_sensibility['relation'].unique()} for p in df_sensibility['prompt'].unique()}
+    # # compute d_out = agreement
+    # df_overlap['d_out'] = [compute_agreement(pred_dict[pA][r], pred_dict[pB][r]) for pA, pB, r in zip(df_overlap['prompt_A'], df_overlap['prompt_B'], df_overlap['relation'])]
 
     # ---------------------
     #   PLOTS
@@ -235,6 +247,7 @@ if __name__ == "__main__":
         s='layer',
         c='relation',
         t='name',
+        sb='type',
         title=f"Overlap vs. input cosine (all relations)",)
 
     fig.show()
@@ -259,30 +272,52 @@ if __name__ == "__main__":
     Display distance in prediction vs. neural overlap
     """
 
-    fig = scatter_slider(
-        df_overlap,
-        x='overlap',
-        y='d_out',
-        s='layer',
-        c='relation',
-        t='name',
-        title=f"Overlap vs. agreement (all relations)",)
+    # fig = scatter_slider(
+    #     df_overlap,
+    #     x='overlap',
+    #     y='d_out',
+    #     s='layer',
+    #     c='relation',
+    #     t='name',
+    #     sb='type',
+    #     title=f"Overlap vs. agreement (all relations)",)
 
-    fig.show()
-    fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_out.html'))
+    # fig.show()
+    # fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_out.html'))
 
     """
     Display distance in prediction vs. distance in the OPT input embedding space
     """
 
+    # fig = scatter_slider(
+    #     df_overlap,
+    #     x='d_in',
+    #     y='d_out',
+    #     s='relation',
+    #     c='relation',
+    #     t='name',
+    #     sb='type',
+    #     title=f"Input cosine vs. agreement (all relations)",)
+
+    # fig.show()
+    # fig.write_html(os.path.join('..',args.output_dir,f'fc1_out_vs_in.html'))
+
+
+    """
+    Display micro vs. ppl
+    """
+
     fig = scatter_slider(
-        df_overlap,
-        x='d_in',
-        y='d_out',
-        s='layer',
+        df_sensibility,
+        x='micro',
+        y='log_ppl',
+        s='relation',
         c='relation',
-        t='name',
-        title=f"Input cosine vs. agreement (all relations)",)
+        t='template',
+        sb='type',
+        title=f"Micro vs. PPL",)
 
     fig.show()
-    fig.write_html(os.path.join('..',args.output_dir,f'fc1_out_vs_in.html'))
+    fig.write_html(os.path.join('..',args.output_dir,f'micro_vs_ppl.html'))
+
+

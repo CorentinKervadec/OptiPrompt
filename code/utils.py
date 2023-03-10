@@ -159,14 +159,16 @@ def analyze(model, samples_batches, sentences_batches, filter_indices=None, inde
     common_eval_loss = 0.0
     accu_fc1_act = []
     accu_ppl = []
+    accu_pred = []
     for i in tqdm(range(len(samples_batches))):
         samples_b = samples_batches[i]
         sentences_b = sentences_batches[i]
 
-        log_probs, cor_b, tot_b, pred_b, topk_preds, loss, common_vocab_loss, fc1_act, ppl = model.run_batchanal(sentences_b, samples_b, training=False, filter_indices=filter_indices, index_list=index_list, vocab_to_common_vocab=vocab_to_common_vocab)
+        log_probs, cor_b, tot_b, pred_b, topk_preds, loss, common_vocab_loss, fc1_act, ppl, preds = model.run_batchanal(sentences_b, samples_b, training=False, filter_indices=filter_indices, index_list=index_list, vocab_to_common_vocab=vocab_to_common_vocab)
         
         accu_fc1_act.append(fc1_act)
         accu_ppl.append(ppl)
+        accu_pred += preds
 
         cor_all += cor_b
         tot_all += tot_b
@@ -200,7 +202,7 @@ def analyze(model, samples_batches, sentences_batches, filter_indices=None, inde
 
     accu_ppl = torch.concat(accu_ppl, dim=0)
     micro, macro = output_result(result, eval_loss)
-    return micro, result, accu_fc1_act, accu_ppl
+    return micro, result, accu_fc1_act, accu_ppl, accu_pred
 
 def gen_feature_sample(data_sample, template, mask_token='[MASK]'):
     feature_sample = {}

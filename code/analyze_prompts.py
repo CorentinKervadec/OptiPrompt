@@ -94,7 +94,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                 test_data = os.path.join(test_data_dir, relation, "test.jsonl")
                 eval_samples = load_data(test_data, template, vocab_subset=vocab_subset, mask_token=model.MASK)
                 eval_samples_batches, eval_sentences_batches = batchify(eval_samples, batch_size)
-                micro, result, fc1_act, ppl = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)
+                micro, result, fc1_act, ppl, preds = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)
                 
                 # rl_2_nbfacts[relation]=torch.tensor(sum([len(batch) for batch in eval_samples_batches]))
                 # directly store the binary tensor of activated neurons to save memory
@@ -106,6 +106,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                     layer = l,
                     micro = micro,
                     ppl = ppl.mean().item(),
+                    preds = preds,
                     nb_facts = torch.tensor(sum([len(batch) for batch in eval_samples_batches])),
                     sensibility_treshold = sensibility_treshold,
                     sensibility = compute_freq_sensibility(masked_act_l,sensibility_treshold))
@@ -447,7 +448,7 @@ def reduce_proj(df, x, z, sl, c, sb, title, algo, n, size=16,
     return fig
 
 
-def scatter_slider(df, x, y, s, t, c, title):
+def scatter_slider(df, x, y, s, t, c, sb, title):
     # Create figure
     fig = go.Figure()
 
@@ -456,9 +457,16 @@ def scatter_slider(df, x, y, s, t, c, title):
     # Add traces, one for each slider step
     for i,l in enumerate(df[s].unique()):
         df_layer=df[df[s]==l]
+        # symbols
+        symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down', \
+                        'triangle-left', 'triangle-right', 'triangle-ne', 'triangle-se', 'triangle-sw', \
+                        'triangle-nw', 'pentagon', 'hexagon', 'hexagon2', 'octagon']
+        symbol_types += [s+'-open' for s in symbol_types]
+        symb_dic = {k:symbol_types[u] for u,k in enumerate(df_layer[sb].unique())}
+        symbols = [symb_dic[k] for k in df_layer[sb]]
         # color
         hx_colors = get_colors()
-        discrete_palette={r:hx_colors[k] for k,r in enumerate(df_layer[c].unique())}
+        discrete_palette={r:hx_colors[k+4] for k,r in enumerate(df_layer[c].unique())}
         color_setting = {
             'color': [discrete_palette[r] for r in df_layer[c]],
         }
@@ -470,6 +478,7 @@ def scatter_slider(df, x, y, s, t, c, title):
                 mode='markers',
                 text=df_layer[t],
                 marker=dict(
+                    symbol=symbols,
                     **color_setting
                 ),
                 visible=False))
