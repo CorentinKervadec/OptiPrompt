@@ -15,7 +15,10 @@ class CausalLM(Base_Connector):
 
         self.model_name = args.model_name
         self.config = AutoConfig.from_pretrained(self.model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        use_fast=True
+        if 'opt' in args.model_name:
+            use_fast=False # because of a bug with the OPT tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=use_fast)
         self.tokenizer.add_special_tokens({'pad_token': self.tokenizer.eos_token})
         self.tokenizer.add_special_tokens({'mask_token': "[MASK]"})
         self.tokenization = TOKENIZATION[self.model_name]
@@ -27,7 +30,12 @@ class CausalLM(Base_Connector):
         else:
             self._init_vocab()
 
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        if self.model_name in LARGE_MODEL_LIST:
+            # requires to create the ./offload_folder beforehand (already done in the container)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, device_map="auto", offload_folder='/offload_folder', torch_dtype=torch.float16)
+        else:
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        
         self.model.eval()
 
         self.EOS = self.tokenizer.eos_token
@@ -53,7 +61,10 @@ class CausalLM(Base_Connector):
         if try_cuda:
             self.try_cuda()
         # Replace the added [MASK] token with EOS token to make embeddings work
-        sentences_list = [self.tokenizer.eos_token + item for sublist in sentences_list for item in sublist]
+        if 'opt' in self.model_name:
+            sentences_list = [item for sublist in sentences_list for item in sublist]
+        else:
+            sentences_list = [self.tokenizer.eos_token + item for sublist in sentences_list for item in sublist]
         input = self.tokenizer(sentences_list, padding=True, return_tensors="pt").input_ids
         masked_indices_list = np.argwhere(input.numpy() == self.tokenizer.mask_token_id)[:,1] - 1 
         masked_indices_list = [[i] for i in masked_indices_list]
@@ -71,7 +82,10 @@ class CausalLM(Base_Connector):
             return None
             
         # Compatibility with existing code
-        sentences_list = [self.tokenizer.eos_token + item for sublist in sentences_list for item in sublist]
+        if 'opt' in self.model_name:
+            sentences_list = [item for sublist in sentences_list for item in sublist]
+        else:
+            sentences_list = [self.tokenizer.eos_token + item for sublist in sentences_list for item in sublist]
         input = self.tokenizer(sentences_list, padding=True, return_tensors="pt")
         masked_indices_list = np.argwhere(input.input_ids.numpy() == self.tokenizer.mask_token_id)[:,1] # not like LAMA evaluation
         masked_indices_list = [[i] for i in masked_indices_list]
@@ -89,5 +103,6 @@ class CausalLM(Base_Connector):
         last_trigger_mask[torch.arange(len(last_trigger_id)),last_trigger_id] = True
         labels_tensor[predict_mask] = torch.tensor(labels)
 
+        input["input_ids"] = torch.where(input.input_ids == self.tokenizer.mask_token_id, self.tokenizer.eos_token_id, input.input_ids)
         return input ,masked_indices_list, labels_tensor, labels.tolist(), last_trigger_mask
 
