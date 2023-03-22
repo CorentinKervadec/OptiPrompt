@@ -11,6 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import json
+from scipy.stats import pearsonr
 
 from transformers import AutoTokenizer
 from transformers import AutoModelForCausalLM
@@ -32,11 +33,13 @@ logger = logging.getLogger(__name__)
 #
 # --------------------
 
+EXP_NAME='opt-350m-autoprompt'
+
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
-LOAD_FC1=["../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-filter.pickle",]
+LOAD_FC1=["../data/fc1/fc1_ppl_pred_data_opt-350m_t0_autoprompt-filter.pickle",
         #   "../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-no-filter.pickle",
-        #   "../data/fc1/fc1_ppl_data_opt-350m_t0_rephrase.pickle"]
+          "../data/fc1/fc1_ppl_pred_data_opt-350m_t0_rephrase.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -103,6 +106,11 @@ if __name__ == "__main__":
 
     args = parse_args()
     
+    save_dir = os.path.join(args.output_dir, EXP_NAME)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+
     # ----- init
     init_device(args.device)
     set_seed(args.seed)
@@ -118,16 +126,22 @@ if __name__ == "__main__":
 
     # ----- load fc1
     all_fc1_act = []
+    all_preds = {}
     for filename in LOAD_FC1:
         print(f'Loading {filename}...')
         with open(os.path.join(args.output_dir, filename),"rb") as f:
-            all_fc1_act += pickle.load(f)
+            dataloaded = pickle.load(f)
+            all_fc1_act += dataloaded['fc1']
+            all_preds.update(dataloaded['preds'])
+
 
     # ----- format fc1
     print("Formatting data...")    
     unique_relations = set(d['relation'] for d in all_fc1_act)
     unique_prompt = set(d['prompt'] for d in all_fc1_act)
     unique_layer = set(d['layer'] for d in all_fc1_act)
+    # remove prompts where [Y] is not at the end
+    all_fc1_act = [p for p in all_fc1_act if (p['template'][-3:]=='[Y]' or p['template'][-4:]=='[Y]?')]
     # Prompt name
     def get_type(prompt):
         if 'paraphrase' in prompt:
@@ -159,6 +173,7 @@ if __name__ == "__main__":
         'prompt_A':d_A['prompt'],
         'prompt_B':d_B['prompt'],
         'layer': l,
+        'type': d_B['type'] if (d_B['type']==d_A['type']) else 'mixte',
         'overlap':(torch.mul(d_B['triggered'],d_A['triggered']).sum()/(d_B['triggered']+d_A['triggered']).sum()).item()}
             for d_B in all_fc1_act if d_B['relation']==rel and d_B['layer']==l]
                 for d_A in all_fc1_act if d_A['relation']==rel and d_A['layer']==l]
@@ -181,7 +196,7 @@ if __name__ == "__main__":
     df_sensibility['log_ppl'] = np.log(df_sensibility['ppl'])
     df_overlap = pd.DataFrame(
         data=predict_triggered_overlap,
-        columns=['relation', 'template_A','template_B','prompt_A','prompt_B','layer','overlap'])
+        columns=['relation', 'template_A','template_B','prompt_A','prompt_B','layer','overlap', 'type'])
     df_overlap['name'] = [ tA+'/'+tB for (tA, tB) in zip(df_overlap['template_A'], df_overlap['template_B']) ]
     # sort by layer
     df_count = df_count.sort_values(['layer'])
@@ -206,16 +221,111 @@ if __name__ == "__main__":
     del input_rep
     df_overlap['d_in'] = [cos_sim(input_rep_dic[tA], input_rep_dic[tB]) for tA, tB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
-    # # measure difference in prediction -- from the output file
-    # # load pred
-    # pred_dict = {p:{r:load_pred(p,r) for r in df_sensibility['relation'].unique()} for p in df_sensibility['prompt'].unique()}
-    # # compute d_out = agreement
-    # df_overlap['d_out'] = [compute_agreement(pred_dict[pA][r], pred_dict[pB][r]) for pA, pB, r in zip(df_overlap['prompt_A'], df_overlap['prompt_B'], df_overlap['relation'])]
+    # measure difference in prediction 
+    df_overlap['d_out'] = [compute_agreement(all_preds[pA], all_preds[pB]) for pA, pB in zip(df_overlap['template_A'], df_overlap['template_B'])]
+
+    # ---------------------
+    #   CORRELATION
+    # ---------------------
+
+    def calculate_pvalues(df):
+        dfcols = pd.DataFrame(columns=df.columns)
+        pvalues = dfcols.transpose().join(dfcols, how='outer')
+        for r in df.columns:
+            for c in df.columns:
+                tmp = df[df[r].notnull() & df[c].notnull()]
+                pvalues[r][c] = round(pearsonr(tmp[r], tmp[c])[1], 4)
+        return pvalues
+
+    metrics_pair = ['overlap', 'd_in', 'd_out']
+    metrics_solo = ['micro', 'ppl']
+    control_pair = ['layer', 'relation',]
+    control_solo = ['relation',]
+
+    pair ={
+        'df': df_overlap,
+        'metrics':metrics_pair,
+        'control':control_pair,
+    }
+    solo ={
+        'df': df_sensibility,
+        'metrics':metrics_solo,
+        'control':control_solo,
+    }
+    
+
+    def get_corr(df, metrics, t, ctrl, ctrl_i):
+        corr = df[metrics].corr(method='pearson').unstack().reset_index()
+        corr = corr.rename(columns={0:'pearson corr.'})
+        corr['pval'] = calculate_pvalues(df[metrics]).unstack().reset_index()[0]
+        # remove symmetrical correlation
+        corr = corr[~pd.DataFrame(np.sort(corr[['level_0','level_1']], axis=1), index=corr.index).duplicated()]
+        # remove correlation between the same metric
+        corr = corr.loc[corr.apply(lambda r: r['level_0'] != r['level_1'], axis=1)]
+        corr['label'] = [ctrl_i,]*len(corr)
+        corr['control'] = [ctrl,]*len(corr)
+        corr['type'] = [t,]*len(corr)
+        return corr
+
+    corr_data = {}
+    for exp_name, corr_conf in {'pair':pair, 'solo':solo}.items():
+        control = corr_conf['control']
+        metrics = corr_conf['metrics']
+        df = corr_conf['df']
+        ctrl_corr = []
+        for t in df['type'].unique():
+            df_type = df[df['type']==t]
+            for ctrl in control:
+                temp = []
+                for ctrl_i in df_type[ctrl].unique():
+                    df_ctrl = df_type[df_type[ctrl]==ctrl_i]
+                    corr = get_corr(df_ctrl, metrics, t, ctrl, ctrl_i)
+                    temp.append(corr)
+                temp_concat = pd.concat(temp)
+                temp_concat['name'] = ['/'.join([l0, l1]) for (l0,l1) in zip(temp_concat['level_0'], temp_concat['level_1'])]
+                ctrl_corr.append(temp_concat)
+            # all
+            corr = get_corr(df_type,metrics, t, 'all', 'all')
+            corr['name'] = ['/'.join([l0, l1]) for (l0,l1) in zip(corr['level_0'], corr['level_1'])]
+            ctrl_corr.append(corr)
+        # all
+        corr = get_corr(df,metrics, 'all', 'all', 'all')
+        corr['name'] = ['/'.join([l0, l1]) for (l0,l1) in zip(corr['level_0'], corr['level_1'])]
+        ctrl_corr.append(corr)
+        corr_data[exp_name] = pd.concat(ctrl_corr)
+
 
     # ---------------------
     #   PLOTS
     # ---------------------
     
+    """
+    Display correlations
+    """
+    import plotly.express as px
+
+    for corr_conf, corr_datum in corr_data.items():
+        for prompt_type in corr_datum['type'].unique():
+            
+            corr_type = corr_datum[corr_datum['type']==prompt_type]
+
+            print(f'[{corr_conf}, {prompt_type}] P value:')
+            print(corr_type[corr_type['label']=='all'])
+            
+            if prompt_type == 'all':
+                fig = px.bar(corr_type, x='name', y="pearson corr.", color='control',
+                       hover_data=['label', 'pval'], title=f'{corr_conf} {prompt_type}')
+                fig.show()
+                fig.write_html(os.path.join('..',save_dir,f'corr_{corr_conf}_{prompt_type}.html'))
+            else:
+                fig = px.box(corr_type, x='name', y="pearson corr.", color='control',
+                            points="all", hover_data=['label', 'pval'], title=f'{corr_conf} {prompt_type}')
+                fig.show()
+                fig.write_html(os.path.join('..',save_dir,f'corr_{corr_conf}_{prompt_type}.html'))
+
+    
+
+
     """
     Display all prompts -- encdoded with the neural activation -- into a tSNE-reduced 2d space
     """
@@ -234,7 +344,7 @@ if __name__ == "__main__":
         size=10,
     )
     fig.show()
-    fig.write_html(os.path.join('..',args.output_dir,f'fc1_reduce_proj_all_rel.html'))
+    fig.write_html(os.path.join('..',save_dir,f'fc1_reduce_proj_all_rel.html'))
 
     """
     Display distance in the OPT input embedding space vs. neural overlap
@@ -251,7 +361,7 @@ if __name__ == "__main__":
         title=f"Overlap vs. input cosine (all relations)",)
 
     fig.show()
-    fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_in.html'))
+    fig.write_html(os.path.join('..',save_dir,f'fc1_overlap_vs_in.html'))
 
     # for r in unique_relations:
     #     df_rel = df_overlap[df_overlap['relation']==r]
@@ -265,42 +375,42 @@ if __name__ == "__main__":
     #     t='name',
     #     title=f"[{r}] Overlap vs. input cosine",)
     #     fig.show()
-    #     fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_in_{r}.html'))
+    #     fig.write_html(os.path.join('..',save_dir,f'fc1_overlap_vs_in_{r}.html'))
 
 
     """
     Display distance in prediction vs. neural overlap
     """
 
-    # fig = scatter_slider(
-    #     df_overlap,
-    #     x='overlap',
-    #     y='d_out',
-    #     s='layer',
-    #     c='relation',
-    #     t='name',
-    #     sb='type',
-    #     title=f"Overlap vs. agreement (all relations)",)
+    fig = scatter_slider(
+        df_overlap,
+        x='overlap',
+        y='d_out',
+        s='layer',
+        c='relation',
+        t='name',
+        sb='type',
+        title=f"Overlap vs. agreement (all relations)",)
 
-    # fig.show()
-    # fig.write_html(os.path.join('..',args.output_dir,f'fc1_overlap_vs_out.html'))
+    fig.show()
+    fig.write_html(os.path.join('..',save_dir,f'fc1_overlap_vs_out.html'))
 
     """
     Display distance in prediction vs. distance in the OPT input embedding space
     """
 
-    # fig = scatter_slider(
-    #     df_overlap,
-    #     x='d_in',
-    #     y='d_out',
-    #     s='relation',
-    #     c='relation',
-    #     t='name',
-    #     sb='type',
-    #     title=f"Input cosine vs. agreement (all relations)",)
+    fig = scatter_slider(
+        df_overlap,
+        x='d_in',
+        y='d_out',
+        s='relation',
+        c='type',
+        t='name',
+        sb='type',
+        title=f"Input cosine vs. agreement (all relations)",)
 
-    # fig.show()
-    # fig.write_html(os.path.join('..',args.output_dir,f'fc1_out_vs_in.html'))
+    fig.show()
+    fig.write_html(os.path.join('..',save_dir,f'fc1_out_vs_in.html'))
 
 
     """
@@ -312,12 +422,11 @@ if __name__ == "__main__":
         x='micro',
         y='log_ppl',
         s='relation',
-        c='relation',
+        c='type',
         t='template',
         sb='type',
         title=f"Micro vs. PPL",)
 
     fig.show()
-    fig.write_html(os.path.join('..',args.output_dir,f'micro_vs_ppl.html'))
-
+    fig.write_html(os.path.join('..',save_dir,f'micro_vs_ppl.html'))
 

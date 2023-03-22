@@ -14,17 +14,17 @@ import matplotlib.pyplot as plt
 import matplotlib  
 
 
-# import plotly.figure_factory as ff
-# import plotly.graph_objects as go
-# import plotly.express as px
-# from plotly.validators.scatter.marker import SymbolValidator
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.validators.scatter.marker import SymbolValidator
 
 
 from models import build_model_by_name
 
-# from sklearn.manifold import TSNE
-# from sklearn.decomposition import PCA, TruncatedSVD
-# from umap import UMAP
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA, TruncatedSVD
+from umap import UMAP
 
 """
 Template utils
@@ -226,8 +226,11 @@ def scatter_slider(df, x, y, title):
         step = dict(
             method="update",
             label=l,
-            args=[{"visible": [False] * len(df[s].unique())},
-                {"title": title + f' | {s}: {l}'}],  # layout attribute
+            args=[
+                {"visible": [False] * len(df[s].unique())},
+                {"title": title + f' | {s}: {l}'},
+                {"xaxis_title": x},
+                {"yaxis_title": y},],  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)
@@ -423,8 +426,9 @@ def reduce_proj(df, x, z, sl, c, sb, title, algo, n, size=16,
         step = dict(
             method="update",
             label=l,
-            args=[{"visible": [False] * len(df[sl].unique())},
-                {"title": title + f' {algo} | {sl}: {l} | e: ' + ','.join(['d%d: %.2f '%(k,x) for k,x in enumerate(explained)])}],  # layout attribute
+            args=[
+                {"visible": [False] * len(df[sl].unique())},
+                {"title": title + f' {algo} | {sl}: {l} | e: ' + ','.join(['d%d: %.2f '%(k,x) for k,x in enumerate(explained)])},],  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)
@@ -459,15 +463,18 @@ def scatter_slider(df, x, y, s, t, c, sb, title):
     for i,l in enumerate(df[s].unique()):
         df_layer=df[df[s]==l]
         # symbols
-        symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down', \
-                        'triangle-left', 'triangle-right', 'triangle-ne', 'triangle-se', 'triangle-sw', \
-                        'triangle-nw', 'pentagon', 'hexagon', 'hexagon2', 'octagon']
-        symbol_types += [symb+'-open' for symb in symbol_types]
-        symb_dic = {k:symbol_types[u] for u,k in enumerate(df_layer[sb].unique())}
-        symbols = [symb_dic[k] for k in df_layer[sb]]
+        if sb is not None:
+            symbol_types = ['circle', 'cross', 'square', 'diamond', 'x', 'triangle-up', 'triangle-down', \
+                            'triangle-left', 'triangle-right', 'triangle-ne', 'triangle-se', 'triangle-sw', \
+                            'triangle-nw', 'pentagon', 'hexagon', 'hexagon2', 'octagon']
+            symbol_types += [symb+'-open' for symb in symbol_types]
+            symb_dic = {k:symbol_types[u] for u,k in enumerate(df_layer[sb].unique())}
+            symbols = [symb_dic[k] for k in df_layer[sb]]
+        else:
+            symbols = 'circle'
         # color
         hx_colors = get_colors()
-        discrete_palette={r:hx_colors[k+4] for k,r in enumerate(df_layer[c].unique())}
+        discrete_palette={r:hx_colors[k+10] for k,r in enumerate(df_layer[c].unique())}
         color_setting = {
             'color': [discrete_palette[r] for r in df_layer[c]],
         }
@@ -486,8 +493,10 @@ def scatter_slider(df, x, y, s, t, c, sb, title):
         step = dict(
             method="update",
             label=l,
-            args=[{"visible": [False] * len(df[s].unique())},
-                {"title": title + f' | {s}: {l}'}],  # layout attribute
+            args=[
+                {"visible": [False] * len(df[s].unique())},
+                {"title": title + f' | {s}: {l}'},# {"xaxis_title": x},{"yaxis_title": y},
+                ],  # layout attribute
         )
         step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
         steps.append(step)

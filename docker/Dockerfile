@@ -1,18 +1,38 @@
-FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
+FROM nvidia/cuda:11.4.3-base-ubuntu20.04
 
 LABEL name Corentin Kervadec "https://registry.sb.upf.edu"
 
 LABEL authors="Corentin Kervadec"
-LABEL version="0.01"
-LABEL description="CUDA Pytorch 1.13 image with \
+LABEL version="0.10"
+LABEL description="CUDA 11.4.3 Pytorch 1.12 image with \
 all dependancies requires to conduct LM prompting experiments"
 
-COPY requirements.txt ./
+# /!\ If building the image from  macOs, don't forget to add --platform linux/amd64 
 
+# Update
 RUN apt-get update
-RUN apt-get install -y build-essential python-dev
-RUN pip install --no-cache-dir Cython==0.29.33 spacy==3.5 tqdm==4.63.0 termcolor==1.1.0 pandas==1.5.3 colorama==0.4.1 scipy==1.10.0 overrides==3.1.0 transformers accelerate cached-path==1.1.2 gdown==4.5.1 fairseq
 
+################### I N S T A L L - L I B #############################
+# Python builder
+RUN apt install -y build-essential
+RUN apt install -y python3-pip
+
+# Pytorch 
+RUN pip install --no-cache-dir torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+# Python utils
+RUN pip install --no-cache-dir tqdm termcolor colorama overrides cached-path gdown 
+# Scientific libs
+RUN pip install --no-cache-dir Cython spacy scipy pandas
+# Viz
+RUN pip install seaborn
+# Fairseq
+RUN pip install --no-cache-dir fairseq
+# Hugging face Tranformer + acceleration lib
+RUN pip install --no-cache-dir transformers accelerate bitsandbytes
+#######################################################################
+
+
+# Cleaning
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

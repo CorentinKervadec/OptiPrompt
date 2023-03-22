@@ -4,6 +4,8 @@ import random
 import logging
 import torch
 
+from transformers import AutoTokenizer
+
 from models import build_model_by_name
 from utils import load_vocab, load_data, batchify, evaluate, get_relation_meta
 
@@ -101,13 +103,14 @@ if __name__ == "__main__":
 
     model = build_model_by_name(args)
 
-    if args.common_vocab_filename is not None:
-        vocab_subset = load_vocab(args.common_vocab_filename)
+    if args.common_vocab_filename!='':
+        vocab_subset = load_vocab(args.common_vocab_filename)   
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
-        filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
     else:
-        filter_indices = None
-        index_list = None
+        vocab_subset = list(model.inverse_vocab.keys())
+        logger.info('Full %s vocab, size: %d'%(args.model_name, len(vocab_subset)))
+
+    filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
 
     if args.output_all_log_probs:
         model.k = len(vocab_subset)
