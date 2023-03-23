@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     model = build_model_by_name(args)
 
-    if args.common_vocab_filename!='':
+    if args.common_vocab_filename!='none':
         vocab_subset = load_vocab(args.common_vocab_filename)   
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
     else:

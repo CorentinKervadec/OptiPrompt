@@ -14,17 +14,17 @@ import matplotlib.pyplot as plt
 import matplotlib  
 
 
-import plotly.figure_factory as ff
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.validators.scatter.marker import SymbolValidator
+# import plotly.figure_factory as ff
+# import plotly.graph_objects as go
+# import plotly.express as px
+# from plotly.validators.scatter.marker import SymbolValidator
 
 
 from models import build_model_by_name
 
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA, TruncatedSVD
-from umap import UMAP
+# from sklearn.manifold import TSNE
+# from sklearn.decomposition import PCA, TruncatedSVD
+# from umap import UMAP
 
 """
 Template utils
