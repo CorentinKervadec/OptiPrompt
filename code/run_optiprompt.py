@@ -18,6 +18,49 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 
 MAX_NUM_VECTORS = 10
 
+RELATIONS = [
+    "P1001",
+    "P101",
+    "P103",
+    "P106",
+    "P108",
+    "P127",
+    "P1303",
+    "P131",
+    "P136",
+    "P1376",
+    "P138",
+    "P140",
+    "P1412",
+    "P159",
+    "P17",
+    "P176",
+    "P178",
+    "P19",
+    "P190",
+    "P20",
+    "P264",
+    "P27",
+    "P276",
+    "P279",
+    "P30",
+    "P36",
+    "P361",
+    "P364",
+    "P37",
+    "P39",
+    "P407",
+    "P413",
+    "P449",
+    "P463",
+    "P47",
+    "P495",
+    "P530",
+    "P740",
+    "P937",
+]
+
+
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
                     level=logging.INFO)
@@ -150,7 +193,7 @@ if __name__ == "__main__":
     parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 
     parser.add_argument('--device', type=str, default='cuda', help='Which computation device: cuda or mps')
-
+    parser.add_argument('--relation', type=str, default='all', help='which relation to evaluate.')
 
     args = parser.parse_args()
 
@@ -195,8 +238,12 @@ if __name__ == "__main__":
     if n_gpu > 1:
         model.model = torch.nn.DataParallel(model.model)
 
+    if args.relation=='all':
+        relation_list = RELATIONS
+    else:
+        relation_list=[r for r in args.relation.split(',')]
 
-    for relation in os.listdir(args.train_data_dir):
+    for relation in relation_list:
         print("RELATION {}".format(relation))
         template = init_template(args, model, relation)
         logger.info('Template: %s'%template)
