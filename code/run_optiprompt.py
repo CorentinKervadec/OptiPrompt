@@ -226,7 +226,7 @@ if __name__ == "__main__":
     logger.info('Original vocab size: %d'%original_vocab_size)
     prepare_for_dense_prompt(model)
 
-    if args.common_vocab_filename!='':
+    if args.common_vocab_filename!='none':
         vocab_subset = load_vocab(args.common_vocab_filename)   
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
     else:
