@@ -121,11 +121,11 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default='bert-base-cased', help='the huggingface model name')
     parser.add_argument('--model_dir', type=str, default=None, help='the model directory (if not using --model_name)')
     parser.add_argument('--output_dir', type=str, help='the output directory to store trained model and prediction results', default="output")
-    parser.add_argument('--common_vocab_filename', type=str, default="common_vocabs/common_vocab_cased.txt", help='common vocabulary of models (used to filter triples)')
-    parser.add_argument('--relation_profile', type=str, default="relation_metainfo/LAMA_relations.jsonl", help='meta infomation of 41 relations, containing the pre-defined templates')
+    parser.add_argument('--common_vocab_filename', type=str, default="", help='common vocabulary of models (used to filter triples)')
+    parser.add_argument('--relation_profile', type=str, default="data/prompts/LAMA_relations.jsonl", help='meta infomation of 41 relations, containing the pre-defined templates')
 
-    parser.add_argument('--train_data_dir', type=str, default="data/filtered_original")
-    parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA")
+    parser.add_argument('--train_data_dir', type=str, default="data/filtered_LAMA_opt")
+    parser.add_argument('--test_data_dir', type=str, default="data/filtered_LAMA_opt")
 
     parser.add_argument('--train_batch_size', type=int, default=16, help='training batch size per GPU')
     parser.add_argument('--eval_batch_size', type=int, default=8)
@@ -149,13 +149,26 @@ if __name__ == "__main__":
     parser.add_argument('--output_predictions', action='store_true', help='whether to output top-k predictions')
     parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 
+    parser.add_argument('--device', type=str, default='cuda', help='Which computation device: cuda or mps')
+
+
     args = parser.parse_args()
 
     logger.info(args)
-    n_gpu = torch.cuda.device_count()
-    logger.info('# GPUs: %d'%n_gpu)
-    if n_gpu == 0:
-        logger.warning('No GPUs found!')
+
+    # Initialize GPUs
+    device=torch.device(args.device)
+    if args.device == 'cuda':
+        n_gpu = torch.cuda.device_count()
+        if n_gpu == 0:
+            logger.warning('No GPU found! exit!')
+        logger.info('# GPUs: %d'%n_gpu)
+
+    elif args.device == 'mps':
+        n_gpu = 1
+    else:
+        logger.info('# Running on CPU')
+        n_gpu = 0
 
     logger.info('Model: %s'%args.model_name)
 
@@ -170,13 +183,14 @@ if __name__ == "__main__":
     logger.info('Original vocab size: %d'%original_vocab_size)
     prepare_for_dense_prompt(model)
 
-    if args.common_vocab_filename is not None:
-        vocab_subset = load_vocab(args.common_vocab_filename)
+    if args.common_vocab_filename!='':
+        vocab_subset = load_vocab(args.common_vocab_filename)   
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
-        filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
     else:
-        filter_indices = None
-        index_list = None
+        vocab_subset = list(model.inverse_vocab.keys())
+        logger.info('Full %s vocab, size: %d'%(args.model_name, len(vocab_subset)))
+
+    filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
 
     if n_gpu > 1:
         model.model = torch.nn.DataParallel(model.model)
