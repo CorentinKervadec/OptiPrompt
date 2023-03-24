@@ -8,6 +8,7 @@ import numpy as np
 
 from utils import get_relation_meta
 from utils import load_vocab, load_data, batchify, analyze, get_relation_meta
+from utils import load_optiprompt, prepare_for_dense_prompt
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -78,12 +79,20 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
         if 'paraphrase' in prompt_file:
             rephrase_dic = read_paraphrase(prompt_file)
 
+        if 'optiprompt' in prompt_file:
+            # add optiprompts tokens to the model em4beddings
+            original_vocab_size = len(list(model.tokenizer.get_vocab()))
+            prepare_for_dense_prompt(model)
+
         for relation in relation_list:
             relation = relation.split(".")[0]
             print("RELATION {}".format(relation))
 
             if 'paraphrase' in prompt_file:
                 template_list = rephrase_dic[relation]['templates']
+            elif 'optiprompt' in prompt_file:
+                template_list = ['[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .',]
+                load_optiprompt(model, prompt_file, original_vocab_size, relation)
             else:
                 template_list = [init_template(prompt_file, relation)]
 
@@ -571,6 +580,8 @@ if __name__ == "__main__":
     
     SENSIBILITY_TRESHOLD=0
     TRIGGER_TRESHOLD_FREQ_RATE=0.2
+
+    OPTIPROMPT_N = 5
 
     RELATIONS_TEST = [
         "P1001",
