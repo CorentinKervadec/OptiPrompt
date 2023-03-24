@@ -206,7 +206,7 @@ if __name__ == "__main__":
     #   METRICS
     # ---------------------
 
-    # measure distance in OPT input embedding between all pais of templates
+    # measure distance in OPT input embedding between all pairs of templates
     input_rep = []
     def save_input_hook() -> Callable:
         def fn(_, __, output):
@@ -214,8 +214,12 @@ if __name__ == "__main__":
         return fn
     model.model.model.decoder.project_in.register_forward_hook(save_input_hook())
     input_rep_dic = {}
-    for t in df_overlap['template_A'].unique():
+    for t,p,r in df_overlap['template_A', 'prompt_A', 'relation'].unique():
         input = tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
+        if '[V1]' in input: # it is an optiprompt, we have to load the vectors
+            # add optiprompts tokens to the model em4beddings
+            original_vocab_size = len(list(model.tokenizer.get_vocab()))
+            load_optiprompt(model, p, original_vocab_size, r)
         model.model(input)
         input_rep_dic[t]=input_rep[-1]
     del input_rep

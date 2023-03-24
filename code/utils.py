@@ -255,3 +255,17 @@ def load_optiprompt(model, output_dir, original_vocab_size, relation):
     # copy fine-tuned new_tokens to the pre-trained model
     with torch.no_grad():
         model.embeddings.weight[original_vocab_size:] = torch.Tensor(vs)
+
+def free_optiprompt(model, original_vocab_size):
+    # remove optiprompts tokens from tokenizer
+    remove_tkn_list = [t for t in model.tokenizer.added_tokens_encoder.keys() if ' [V' in t]
+    remove_idx_list = [model.tokenizer.added_tokens_encoder[t] for t in model.tokenizer.added_tokens_encoder.keys() if ' [V' in t]
+    for t in remove_tkn_list:
+        del model.tokenizer.added_tokens_encoder[t]
+    for idx in remove_idx_list:
+        del model.tokenizer.added_tokens_decoder[idx]
+    logger.info('# vocab after removing optiptompts tokens: %d'%len(model.tokenizer))
+    assert original_vocab_size == len(model.tokenizer)
+    # remove optiprompts embeddings
+    ebd = model.model.resize_token_embeddings(len(model.tokenizer))
+    model.update_embeddings()

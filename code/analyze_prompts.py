@@ -8,7 +8,7 @@ import numpy as np
 
 from utils import get_relation_meta
 from utils import load_vocab, load_data, batchify, analyze, get_relation_meta
-from utils import load_optiprompt, prepare_for_dense_prompt
+from utils import load_optiprompt, prepare_for_dense_prompt, free_optiprompt
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -74,25 +74,28 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
     rl_2_nbfacts = {} 
     prompt2template = {prompt.split('/')[-1]:{rel:"" for rel in relation_list} for prompt in all_prompt_files}
 
+    flag_free_optiprompt = False
+    original_vocab_size = len(list(model.tokenizer.get_vocab()))
+
     for prompt_file in all_prompt_files:
 
         if 'paraphrase' in prompt_file:
             rephrase_dic = read_paraphrase(prompt_file)
 
-        if 'optiprompt' in prompt_file:
-            # add optiprompts tokens to the model em4beddings
-            original_vocab_size = len(list(model.tokenizer.get_vocab()))
-            prepare_for_dense_prompt(model)
-
         for relation in relation_list:
             relation = relation.split(".")[0]
             print("RELATION {}".format(relation))
+
+            if flag_free_optiprompt:
+                free_optiprompt(model, original_vocab_size)
+                flag_free_optiprompt = False
 
             if 'paraphrase' in prompt_file:
                 template_list = rephrase_dic[relation]['templates']
             elif 'optiprompt' in prompt_file:
                 template_list = ['[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .',]
                 load_optiprompt(model, prompt_file, original_vocab_size, relation)
+                flag_free_optiprompt=True
             else:
                 template_list = [init_template(prompt_file, relation)]
 
