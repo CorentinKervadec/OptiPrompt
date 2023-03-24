@@ -106,6 +106,8 @@ class Base_Connector():
             embeddings = self.model.transformer.wte
         elif self.config.model_type == "t5":
             embeddings = self.model.encoder.embed_tokens
+        elif self.config.model_type == "opt":
+            embeddings = self.model.model.decoder.embed_tokens
         else:
             base_model = getattr(self.model, self.config.model_type)
             embeddings = base_model.embeddings.word_embeddings

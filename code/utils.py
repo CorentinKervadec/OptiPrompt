@@ -4,6 +4,7 @@ from tqdm import tqdm
 import sys
 import logging
 import torch
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -232,3 +233,25 @@ def load_data(data_path, template, vocab_subset=None, mask_token='[MASK]'):
 
     return all_samples
 
+MAX_NUM_VECTORS = 10
+
+def get_new_token(vid):
+    assert(vid > 0 and vid <= MAX_NUM_VECTORS)
+    return ' [V%d]'%(vid)
+
+def prepare_for_dense_prompt(model):
+    new_tokens = [get_new_token(i+1) for i in range(MAX_NUM_VECTORS)]
+    model.tokenizer.add_tokens(new_tokens)
+    ebd = model.model.resize_token_embeddings(len(model.tokenizer))
+    logger.info('# vocab after adding new tokens: %d'%len(model.tokenizer))
+    model.update_embeddings()
+
+def load_optiprompt(model, output_dir, original_vocab_size, relation):
+    prepare_for_dense_prompt(model)
+    logger.info("Loading OptiPrompt's [V]s..")
+    with open(os.path.join(output_dir, f'{relation}.npy'), 'rb') as f:
+        vs = np.load(f)
+    
+    # copy fine-tuned new_tokens to the pre-trained model
+    with torch.no_grad():
+        model.embeddings.weight[original_vocab_size:] = torch.Tensor(vs)

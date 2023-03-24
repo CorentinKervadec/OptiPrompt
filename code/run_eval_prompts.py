@@ -7,7 +7,7 @@ import torch
 from transformers import AutoTokenizer
 
 from models import build_model_by_name
-from utils import load_vocab, load_data, batchify, evaluate, get_relation_meta
+from utils import load_vocab, load_data, batchify, evaluate, get_relation_meta, load_optiprompt, prepare_for_dense_prompt
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -56,6 +56,8 @@ RELATIONS_TEST = [
     "P937",
 ]
 
+OPTIPROMPT_N = 5
+
 def init_template(prompt_file, relation):
     relation = get_relation_meta(prompt_file, relation)
     return relation['template']
@@ -103,6 +105,12 @@ if __name__ == "__main__":
 
     model = build_model_by_name(args)
 
+    if 'optiprompt' in args.prompt_file:
+        # add optiprompts tokens to the model em4beddings
+        original_vocab_size = len(list(model.tokenizer.get_vocab()))
+        prepare_for_dense_prompt(model)
+
+
     if args.common_vocab_filename!='':
         vocab_subset = load_vocab(args.common_vocab_filename)   
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
@@ -127,8 +135,12 @@ if __name__ == "__main__":
         output_dir = os.path.join(args.output_dir, os.path.basename(args.prompt_file).split(".")[0],args.model_name.replace("/","_"))
         os.makedirs(output_dir , exist_ok=True)
 
-        template = init_template(args.prompt_file, relation)
-        logger.info('Template: %s'%template)
+        if 'optiprompt' in args.prompt_file:
+            template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .'
+            load_optiprompt(model, args.prompt_file, original_vocab_size, relation)
+        else:
+            template = init_template(args.prompt_file, relation)
+            logger.info('Template: %s'%template)
 
         test_data = os.path.join(args.test_data_dir, relation, "test.jsonl")
         eval_samples = load_data(test_data, template, vocab_subset=vocab_subset, mask_token=model.MASK)
