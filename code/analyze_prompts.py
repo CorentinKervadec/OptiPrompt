@@ -14,17 +14,17 @@ import matplotlib.pyplot as plt
 import matplotlib  
 
 
-import plotly.figure_factory as ff
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.validators.scatter.marker import SymbolValidator
+# import plotly.figure_factory as ff
+# import plotly.graph_objects as go
+# import plotly.express as px
+# from plotly.validators.scatter.marker import SymbolValidator
 
 
 from models import build_model_by_name
 
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA, TruncatedSVD
-from umap import UMAP
+# from sklearn.manifold import TSNE
+# from sklearn.decomposition import PCA, TruncatedSVD
+# from umap import UMAP
 
 """
 Template utils
@@ -639,13 +639,14 @@ if __name__ == "__main__":
     # Turn on the analyse mode
     model.set_analyse_mode()
 
-    if args.common_vocab_filename is not None:
-        vocab_subset = load_vocab(args.common_vocab_filename)
+    if args.common_vocab_filename!='none':
+        vocab_subset = load_vocab(args.common_vocab_filename)   
         logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
-        filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
     else:
-        filter_indices = None
-        index_list = None
+        vocab_subset = list(model.inverse_vocab.keys())
+        logger.info('Full %s vocab, size: %d'%(args.model_name, len(vocab_subset)))
+
+    filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
 
     if args.output_all_log_probs:
         model.k = len(vocab_subset)
