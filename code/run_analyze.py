@@ -126,8 +126,7 @@ if __name__ == "__main__":
     logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
     filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
     ## tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name, use_fast=False)
-    tokenizer.add_tokens(['[X]', '[Y]'])
+    # tokenizer.add_tokens(['[X]', '[Y]'])
 
     # ----- load fc1
     all_fc1_act = []
@@ -240,7 +239,7 @@ if __name__ == "__main__":
             load_optiprompt(model, os.path.join("data/prompts/",p), original_vocab_size, r)
             flag_free_optiprompt = True
             t = t.split('_')[-1] # remove relation + seed info
-        input = tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
+        input = model.tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
         model.model(input)
         input_rep_dic[t]=input_rep[-1]
     del input_rep
