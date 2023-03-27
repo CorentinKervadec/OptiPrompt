@@ -37,9 +37,10 @@ EXP_NAME='opt-350m-autoprompt'
 
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
-LOAD_FC1=["../data/fc1/fc1_ppl_pred_data_opt-350m_t0_autoprompt-filter.pickle",
-        #   "../data/fc1/fc1_ppl_data_opt-350m_t0_autoprompt-no-filter.pickle",
-          "../data/fc1/fc1_ppl_pred_data_opt-350m_t0_rephrase.pickle"]
+LOAD_FC1=["../data/fc1/fc1_data_opt-350m_t0_optiprompt_fullvoc.pickle"]
+        # "../data/fc1/fc1_ppl_pred_data_opt-350m_t0_autoprompt-filter.pickle",
+        #   "../data/fc1/fc1_data_opt-350m_t0_autoprompt-no-filter_fullvoc.pickle",
+        #   "../data/fc1/fc1_data_opt-350m_t0_rephrase_fullvoc.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -141,7 +142,10 @@ if __name__ == "__main__":
     unique_prompt = set(d['prompt'] for d in all_fc1_act)
     unique_layer = set(d['layer'] for d in all_fc1_act)
     # remove prompts where [Y] is not at the end
-    all_fc1_act = [p for p in all_fc1_act if (p['template'][-3:]=='[Y]' or p['template'][-4:]=='[Y]?')]
+    all_fc1_act = [p for p in all_fc1_act \
+                   if (p['template'][-3:]=='[Y]' 
+                       or p['template'][-4:]=='[Y]?'
+                       or p['template'][-5:]=='[Y] .')]
     # Prompt name
     def get_type(prompt):
         if 'paraphrase' in prompt:
@@ -150,9 +154,15 @@ if __name__ == "__main__":
             return 'autoprompt-filter'
         elif 'autoprompt-no-filter' in prompt:
             return 'autoprompt-no-filter'
+        elif 'optiprompt' in prompt:
+            return 'optiprompt'
     [d.update({
         'type':get_type(d['prompt'])
     }) for d in all_fc1_act]
+    # # modify template for optiprompts # done during extraction
+    # [d.update({
+    #     'template+':f"{d['relation']}_{d['prompt'].split('seed')[-1]}_{d['template']}" if d['type']=='optiprompt' else d['template']
+    # }) for d in all_fc1_act]
     # Add activated count
     [d.update({
         'count':count_activated_neurons(

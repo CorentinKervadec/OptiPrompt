@@ -111,11 +111,11 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                 
                 # rl_2_nbfacts[relation]=torch.tensor(sum([len(batch) for batch in eval_samples_batches]))
                 # directly store the binary tensor of activated neurons to save memory
-
+                template_plus = f"{relation}_{prompt_file.split('/')[-1].split('seed')[-1]}_{template}" if 'optiprompt' in prompt_file else template
                 all_fc1_act += [dict(
                     relation = relation,
                     prompt = prompt_file.split('/')[-1],
-                    template = template,
+                    template = template_plus,
                     layer = l,
                     micro = micro,
                     ppl = ppl.mean().item(),
@@ -123,7 +123,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                     sensibility_treshold = sensibility_treshold,
                     sensibility = compute_freq_sensibility(masked_act_l,sensibility_treshold))
                         for l, masked_act_l in select_pred_masked_act(fc1_act).items()]
-                template_preds[template]=preds
+                template_preds[template_plus]=preds
 
     return all_fc1_act, template_preds
         
