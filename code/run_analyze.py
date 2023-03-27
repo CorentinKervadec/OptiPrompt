@@ -18,6 +18,7 @@ from transformers import AutoModelForCausalLM
 from typing import Callable
 
 from utils import load_vocab
+from utils import load_optiprompt, free_optiprompt
 from models import build_model_by_name
 from analyze_prompts import *
 
@@ -46,7 +47,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help='the huggingface model name')
     parser.add_argument('--output_dir', type=str, default='/Users/corentk/ALiEN/Prompting_prompts/source_code/OptiPrompt/analyze', help='the output directory to store prediction results')
-    parser.add_argument('--common_vocab_filename', type=str, default='./data/vocab/common_vocab_opt_probing_prompts.txt', help='common vocabulary of models (used to filter triples)')
+    parser.add_argument('--common_vocab_filename', type=str, default='none', help='common vocabulary of models (used to filter triples)')
     parser.add_argument('--seed', type=int, default=6)
     parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
     parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
@@ -118,7 +119,10 @@ if __name__ == "__main__":
     ## model
     model = build_model_by_name(args)
     ## vocab
-    vocab_subset = load_vocab(args.common_vocab_filename)
+    if args.common_vocab_filename!='none':
+        vocab_subset = load_vocab(args.common_vocab_filename)   
+    else:
+        vocab_subset = list(model.inverse_vocab.keys())
     logger.info('Common vocab: %s, size: %d'%(args.common_vocab_filename, len(vocab_subset)))
     filter_indices, index_list = model.init_indices_for_filter_logprobs(vocab_subset)
     ## tokenizer
@@ -224,12 +228,19 @@ if __name__ == "__main__":
         return fn
     model.model.model.decoder.project_in.register_forward_hook(save_input_hook())
     input_rep_dic = {}
-    for t,p,r in df_overlap['template_A', 'prompt_A', 'relation'].unique():
-        input = tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
-        if '[V1]' in input: # it is an optiprompt, we have to load the vectors
+    flag_free_optiprompt = False
+    for idx, diter in df_overlap[['template_A', 'prompt_A', 'relation']].drop_duplicates().iterrows():
+        t, p, r = diter['template_A'], diter['prompt_A'], diter['relation']
+        if flag_free_optiprompt:
+            free_optiprompt(model, original_vocab_size)
+            flag_free_optiprompt = False
+        if 'optiprompt' in p: # it is an optiprompt, we have to load the vectors
             # add optiprompts tokens to the model em4beddings
             original_vocab_size = len(list(model.tokenizer.get_vocab()))
-            load_optiprompt(model, p, original_vocab_size, r)
+            load_optiprompt(model, os.path.join("data/prompts/",p), original_vocab_size, r)
+            flag_free_optiprompt = True
+            t = t.split('_')[-1] # remove relation + seed info
+        input = tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
         model.model(input)
         input_rep_dic[t]=input_rep[-1]
     del input_rep
