@@ -257,7 +257,10 @@ class Base_Connector():
                     topk.append(topk_preds)
 
                     # compute entropy on common vocab
-                    common_logits = logits[i][masked_index].cpu().index_select(dim=0, index=filter_indices)
+                    #
+                    #   Possibly a bug because of the use of masked index / fixed?
+                    #
+                    common_logits = predict_logits[i].cpu().index_select(dim=0, index=filter_indices)
                     common_log_prob = -F.log_softmax(common_logits, dim=-1)
                     common_label_id = vocab_to_common_vocab[mlm_label]
                     common_vocab_loss.append(common_log_prob[common_label_id].item())

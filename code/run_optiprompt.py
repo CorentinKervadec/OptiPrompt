@@ -129,7 +129,10 @@ def init_template(args, model, relation_name):
         template = convert_random_to_dense(model)
     else:
         print("INIT RANDOM VECS")
-        template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(args.num_vectors)]) + ' [Y] .'
+        if 'opt' in args.model_name:
+            template = '[X]  ' + '  '.join(['[V%d]'%(i+1) for i in range(args.num_vectors)]) + '  [Y]'
+        else:
+            template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(args.num_vectors)]) + ' [Y] .'
     return template
 
 def prepare_for_dense_prompt(model):
