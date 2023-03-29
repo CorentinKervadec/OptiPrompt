@@ -131,6 +131,8 @@ def init_template(args, model, relation_name):
         print("INIT RANDOM VECS")
         if 'opt' in args.model_name:
             template = '[X]  ' + '  '.join(['[V%d]'%(i+1) for i in range(args.num_vectors)]) + '  [Y]'
+        elif 'gpt2' in args.model_name:
+            template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(args.num_vectors)]) + '[Y]'
         else:
             template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(args.num_vectors)]) + ' [Y] .'
     return template
