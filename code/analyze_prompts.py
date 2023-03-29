@@ -94,11 +94,11 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                 template_list = rephrase_dic[relation]['templates']
             elif 'optiprompt' in prompt_file:
                 if 'opt' in model.model_name:
-                    template = '[X]  ' + '  '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .'
+                    template = ['[X]  ' + '  '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .']
                 elif 'gpt2' in model.model_name:
-                    template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + '[Y] .'
+                    template = ['[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + '[Y] .']
                 else:
-                    template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .'
+                    template = ['[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .']
 
                 load_optiprompt(model, prompt_file, original_vocab_size, relation)
                 flag_free_optiprompt=True
