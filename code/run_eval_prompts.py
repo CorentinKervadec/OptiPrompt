@@ -135,7 +135,14 @@ if __name__ == "__main__":
         os.makedirs(output_dir , exist_ok=True)
 
         if 'optiprompt' in args.prompt_file:
-            template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .'
+            if 'opt' in args.model_name:
+                template = '[X]  ' + '  '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .'
+            elif 'gpt2' in args.model_name:
+                template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + '[Y] .'
+            else:
+                template = '[X] ' + ' '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .'
+
+
             load_optiprompt(model, args.prompt_file, original_vocab_size, relation)
         else:
             template = init_template(args.prompt_file, relation)
