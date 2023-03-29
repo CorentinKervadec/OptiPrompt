@@ -34,18 +34,19 @@ logger = logging.getLogger(__name__)
 #
 # --------------------
 
-EXP_NAME='opt-350m-autoprompt'
+MODEL='opt-1.3b'
+EXP_NAME=f'opt-{MODEL}-autoprompt'
 
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
-LOAD_FC1=["../data/fc1/fc1_data_opt-350m_t0_optiprompt_fullvoc.pickle"]
-        # "../data/fc1/fc1_ppl_pred_data_opt-350m_t0_autoprompt-filter.pickle",
-        #   "../data/fc1/fc1_data_opt-350m_t0_autoprompt-no-filter_fullvoc.pickle",
-        #   "../data/fc1/fc1_data_opt-350m_t0_rephrase_fullvoc.pickle"]
+LOAD_FC1=[f"../data/fc1/fc1_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
+        # f"../data/fc1/fc1_ppl_pred_data_{MODEL}_t0_autoprompt-filter.pickle",
+          f"../data/fc1/fc1_ppl_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
+          f"../data/fc1/fc1_ppl_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help='the huggingface model name')
+    parser.add_argument('--model_name', type=str, default=f'facebook/{MODEL}', help='the huggingface model name')
     parser.add_argument('--output_dir', type=str, default='/Users/corentk/ALiEN/Prompting_prompts/source_code/OptiPrompt/analyze', help='the output directory to store prediction results')
     parser.add_argument('--common_vocab_filename', type=str, default='none', help='common vocabulary of models (used to filter triples)')
     parser.add_argument('--seed', type=int, default=6)
@@ -218,30 +219,36 @@ if __name__ == "__main__":
     # ---------------------
     #   METRICS
     # ---------------------
+    df_micro = df_sensibility[['prompt','relation','micro', 'type']].set_index('prompt').drop_duplicates().groupby(['prompt', 'type'])
+    avg_micro = df_micro.mean()
+    std_micro = df_micro.std()
+    max_micro = df_micro.max()
+    all_avg_micro = avg_micro.groupby('type').mean()
+
 
     # measure distance in OPT input embedding between all pairs of templates
     input_rep = []
     def save_input_hook() -> Callable:
-        def fn(_, __, output):
-            input_rep.append(output.detach().mean(1).cpu().squeeze().numpy())
+        def fn(_, input, output):
+            input_rep.append(input[0].detach().mean(1).cpu().squeeze().numpy())
         return fn
-    model.model.model.decoder.project_in.register_forward_hook(save_input_hook())
+    model.model.model.decoder.layers[0].register_forward_hook(save_input_hook())
     input_rep_dic = {}
-    flag_free_optiprompt = False
     for idx, diter in df_overlap[['template_A', 'prompt_A', 'relation']].drop_duplicates().iterrows():
         t, p, r = diter['template_A'], diter['prompt_A'], diter['relation']
-        if flag_free_optiprompt:
-            free_optiprompt(model, original_vocab_size)
-            flag_free_optiprompt = False
         if 'optiprompt' in p: # it is an optiprompt, we have to load the vectors
             # add optiprompts tokens to the model em4beddings
             original_vocab_size = len(list(model.tokenizer.get_vocab()))
             load_optiprompt(model, os.path.join("data/prompts/",p), original_vocab_size, r)
             flag_free_optiprompt = True
-            t = t.split('_')[-1] # remove relation + seed info
-        input = model.tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
-        model.model(input)
-        input_rep_dic[t]=input_rep[-1]
+            input = model.tokenizer.encode(t.split('_')[-1].replace('[X]','').replace('[Y]',''), return_tensors="pt")
+            model.model(input)
+            input_rep_dic[t]=input_rep[-1]
+            free_optiprompt(model, original_vocab_size)
+        else:
+            input = model.tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
+            model.model(input)
+            input_rep_dic[t]=input_rep[-1]
     del input_rep
     df_overlap['d_in'] = [cos_sim(input_rep_dic[tA], input_rep_dic[tB]) for tA, tB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
