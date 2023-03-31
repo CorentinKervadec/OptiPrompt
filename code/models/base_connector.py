@@ -403,7 +403,7 @@ class Base_Connector():
         
         # mask = 1 * target_ids.eq(self.tokenizer.pad_token_id) # 1 means the position has to be masked
         predict_index = predict_mask.nonzero(as_tuple=True)[1].unsqueeze(-1) # do not include the prediction
-        arange = torch.arange(target_ids.size(-1)).unsqueeze(0).to(predict_index.devices)
+        arange = torch.arange(target_ids.size(-1)).unsqueeze(0).to(predict_index.device)
         mask = torch.where(arange>(predict_index-1), 1, 0) # 1 means the position has to be masked
         loss = self.nll(logits, target_ids)
         # mask padding tokens + average over valid tokens
