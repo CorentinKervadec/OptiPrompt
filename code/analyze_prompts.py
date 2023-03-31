@@ -15,17 +15,17 @@ import matplotlib.pyplot as plt
 import matplotlib  
 
 
-# import plotly.figure_factory as ff
-# import plotly.graph_objects as go
-# import plotly.express as px
-# from plotly.validators.scatter.marker import SymbolValidator
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.validators.scatter.marker import SymbolValidator
 
 
 from models import build_model_by_name
 
-# from sklearn.manifold import TSNE
-# from sklearn.decomposition import PCA, TruncatedSVD
-# from umap import UMAP
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA, TruncatedSVD
+from umap import UMAP
 
 """
 Template utils
@@ -113,7 +113,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                 test_data = os.path.join(test_data_dir, relation, "test.jsonl")
                 eval_samples = load_data(test_data, template, vocab_subset=vocab_subset, mask_token=model.MASK)
                 eval_samples_batches, eval_sentences_batches = batchify(eval_samples, batch_size)
-                micro, result, fc1_act, ppl, preds = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)
+                micro, result, fc1_act, ppl, ent, preds = analyze(model, eval_samples_batches, eval_sentences_batches, filter_indices, index_list, output_topk=None)
                 
                 # rl_2_nbfacts[relation]=torch.tensor(sum([len(batch) for batch in eval_samples_batches]))
                 # directly store the binary tensor of activated neurons to save memory
@@ -125,6 +125,7 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
                     layer = l,
                     micro = micro,
                     ppl = ppl.mean().item(),
+                    ent = ent.mean().item(),
                     nb_facts = torch.tensor(sum([len(batch) for batch in eval_samples_batches])),
                     sensibility_treshold = sensibility_treshold,
                     sensibility = compute_freq_sensibility(masked_act_l,sensibility_treshold))

@@ -34,15 +34,15 @@ logger = logging.getLogger(__name__)
 #
 # --------------------
 
-MODEL='opt-1.3b'
+MODEL='opt-350m'
 EXP_NAME=f'opt-{MODEL}-autoprompt'
 
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
 LOAD_FC1=[
-    #f"../data/fc1/fc1_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
+    # f"../data/fc1/fc1_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
         # f"../data/fc1/fc1_ppl_pred_data_{MODEL}_t0_autoprompt-filter.pickle",
-     #     f"../data/fc1/fc1_ppl_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
+         f"../data/fc1/fc1_ppl_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
           f"../data/fc1/fc1_ppl_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
 
 def parse_args():
@@ -220,14 +220,13 @@ if __name__ == "__main__":
     # ---------------------
     #   METRICS
     # ---------------------
-    df_micro = df_sensibility[['prompt','relation','micro', 'type']].set_index('prompt').drop_duplicates().groupby(['prompt', 'type'])
-    avg_micro = df_micro.mean()
-    std_micro = df_micro.std()
-    max_micro = df_micro.max()
-    avg_avg_micro = avg_micro.groupby('type').mean()
-    std_avg_micro = avg_micro.groupby('type').std()
-    print("Average micro: ", avg_avg_micro)
-    print("Std micro: ", std_avg_micro)
+    # remove layers
+    df_scores = df_sensibility[['prompt','relation','micro', 'type', 'ppl']].set_index('prompt').drop_duplicates()
+    # df_micro = df_sensibility[['prompt','relation','micro', 'type']].set_index('prompt').drop_duplicates().groupby(['prompt', 'type'])
+    avg_micro = df_scores.groupby(['type','relation']).mean().groupby(['type']).mean()
+    consistency = df_scores.groupby(['type', 'relation']).std().groupby(['type']).mean()
+    print("Average: ", avg_micro)
+    print("Consistency: ", consistency)
 
 
     # measure distance in OPT input embedding between all pairs of templates
@@ -258,6 +257,9 @@ if __name__ == "__main__":
 
     # measure difference in prediction 
     df_overlap['d_out'] = [compute_agreement(all_preds[pA], all_preds[pB]) for pA, pB in zip(df_overlap['template_A'], df_overlap['template_B'])]
+
+    print('Metrics avg: ', df_overlap.groupby('type').mean())
+    print('Metrics std: ', df_overlap.groupby('type').std())
 
     # ---------------------
     #   CORRELATION

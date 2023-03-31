@@ -315,6 +315,8 @@ class Base_Connector():
             'predict_mask':predict_mask}
         # Get PPL
         ppl = self.get_perplexity(logits, input.input_ids)
+        # Get Entropy
+        ent = self.get_entropy(logits, predict_mask)
              
 
         # During testing, return accuracy and top-k predictions
@@ -359,7 +361,7 @@ class Base_Connector():
             else:
                 preds.append(0)
                         
-        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl, accu_pred
+        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl, ent, accu_pred
 
     def enable_output_hidden_states(self):
         self.config.output_hidden_states=True
@@ -407,3 +409,8 @@ class Base_Connector():
 
         ppl = torch.exp(loss).to('cpu')
         return ppl
+    
+    def get_entropy(self, logits, predict_mask):
+        log_prob = F.log_softmax(logits, dim=-1)
+        prob = F.softmax(logits, dim=-1)
+        return -(prob * log_prob).sum(-1)[predict_mask]
