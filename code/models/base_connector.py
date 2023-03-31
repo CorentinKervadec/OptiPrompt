@@ -314,7 +314,7 @@ class Base_Connector():
             'input_mask': act_mask,
             'predict_mask':predict_mask}
         # Get PPL
-        ppl = self.get_perplexity(logits, input.input_ids)
+        ppl = self.get_perplexity(logits, input.input_ids, predict_mask)
         # Get Entropy
         ent = self.get_entropy(logits, predict_mask)
              
@@ -394,15 +394,17 @@ class Base_Connector():
     def shift_batch_tensor(self, t, mask_token):
         return torch.concat([t[:,1:], torch.full_like(t[:,0], mask_token).unsqueeze(-1)], dim=1)
 
-    def get_perplexity(self, logits, input_ids):
+    def get_perplexity(self, logits, input_ids, predict_mask):
         # targets are the shifted input_ids
         target_ids = input_ids.clone()
         # target_ids = torch.where(target_ids==pad_token, mask_token, target_ids) # ignore padding tokens
 
         target_ids = self.shift_batch_tensor(target_ids, self.tokenizer.pad_token_id)
         
-        mask = 1 * target_ids.eq(self.tokenizer.pad_token_id) # 1 means the position has to be masked
-        
+        # mask = 1 * target_ids.eq(self.tokenizer.pad_token_id) # 1 means the position has to be masked
+        predict_index = predict_mask.nonzero(as_tuple=True)[1].unsqueeze(-1) # do not include the prediction
+        arange = torch.arange(target_ids.size(-1)).unsqueeze(0)
+        mask = torch.where(arange>(predict_index-1), 1, 0) # 1 means the position has to be masked
         loss = self.nll(logits, target_ids)
         # mask padding tokens + average over valid tokens
         loss = (loss * (1-mask)).sum(-1) / (1-mask).sum(-1)
