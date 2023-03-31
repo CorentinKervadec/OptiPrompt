@@ -314,9 +314,9 @@ class Base_Connector():
             'input_mask': act_mask,
             'predict_mask':predict_mask}
         # Get PPL
-        ppl = self.get_perplexity(logits, input.input_ids, predict_mask)
+        ppl = self.get_perplexity(logits, input.input_ids, predict_mask.to(self._model_device))
         # Get Entropy
-        ent = self.get_entropy(logits, predict_mask)
+        ent = self.get_entropy(logits, predict_mask.to(self._model_device))
              
 
         # During testing, return accuracy and top-k predictions
