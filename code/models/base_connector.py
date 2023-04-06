@@ -441,12 +441,12 @@ class Base_Connector():
             tkn_sorted = predict_attention.contiguous().sort(dim=-1, descending=True).values
             # tkn_exp = tkn_sorted.unsqueeze(1).expand((-1, d_2, -1))
             tkn_exp = tkn_sorted.unsqueeze(2).expand((-1, -1, d_2, -1))
-            triang_mask = torch.ones((d_1, d_1)).tril(diagonal=0).unsqueeze(0).unsqueeze(0)
+            triang_mask = torch.ones((d_1, d_1)).tril(diagonal=0).unsqueeze(0).unsqueeze(0).to(tkn_exp.device)
             cumsum = (triang_mask * tkn_exp).sum(-1)  #
             k = (cumsum <= treshold).sum(-1) + 1  #
             # normalize k with the number of non masked tokens
             true_n_tkn = att_mask.sum(-1)  # number of tokens after masking
             k = k.float() / true_n_tkn.unsqueeze(-1).float() * 100
-            k_dist[l_i] = k.detach()
+            k_dist[l_i] = k.cpu().detach()
         k_dist = torch.stack(k_dist)
         return k_dist
