@@ -445,7 +445,7 @@ class Base_Connector():
             cumsum = (triang_mask * tkn_exp).sum(-1)  #
             k = (cumsum <= treshold).sum(-1) + 1  #
             # normalize k with the number of non masked tokens
-            true_n_tkn = att_mask.sum(-1)  # number of tokens after masking
+            true_n_tkn = att_mask.sum(-1).to(k.device)  # number of tokens after masking
             k = k.float() / true_n_tkn.unsqueeze(-1).float() * 100
             k_dist[l_i] = k.cpu().detach()
         k_dist = torch.stack(k_dist)
