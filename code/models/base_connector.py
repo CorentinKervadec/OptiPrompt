@@ -312,12 +312,11 @@ class Base_Connector():
             'input_mask': act_mask,
             'predict_mask':predict_mask}
         # Get PPL
-        ppl = self.get_perplexity(logits, input.input_ids, predict_mask)
+        ppl = self.get_perplexity(logits, input.input_ids, predict_mask.to(self._model_device))
         # Get Entropy
-        ent = self.get_entropy(logits, predict_mask)
+        ent = self.get_entropy(logits, predict_mask.to(self._model_device))
         # Get attention energy
         k_dist = self.get_k_dist_from_attmaps(output.attentions, predict_mask)
-             
 
         # During testing, return accuracy and top-k predictions
         tot = log_probs.shape[0]
@@ -411,7 +410,7 @@ class Base_Connector():
         
         # mask = 1 * target_ids.eq(self.tokenizer.pad_token_id) # 1 means the position has to be masked
         predict_index = predict_mask.nonzero(as_tuple=True)[1].unsqueeze(-1) # do not include the prediction
-        arange = torch.arange(target_ids.size(-1)).unsqueeze(0)
+        arange = torch.arange(target_ids.size(-1)).unsqueeze(0).to(predict_index.device)
         mask = torch.where(arange>(predict_index-1), 1, 0) # 1 means the position has to be masked
         loss = self.nll(logits, target_ids)
         # mask padding tokens + average over valid tokens
