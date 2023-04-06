@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import json
 from scipy.stats import pearsonr
+from sklearn.cluster import DBSCAN
 
 from transformers import AutoTokenizer
 from transformers import AutoModelForCausalLM
@@ -40,10 +41,10 @@ EXP_NAME=f'opt-{MODEL}-autoprompt'
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
 LOAD_FC1=[
-    # f"../data/fc1/fc1_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
+    f"../data/fc1/fc1_ent_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
         # f"../data/fc1/fc1_ppl_pred_data_{MODEL}_t0_autoprompt-filter.pickle",
-         f"../data/fc1/fc1_ppl_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
-          f"../data/fc1/fc1_ppl_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
+         f"../data/fc1/fc1_ent_ppl_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
+          f"../data/fc1/fc1_ent_ppl_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -181,6 +182,17 @@ if __name__ == "__main__":
             d['nb_facts']*TRIGGER_TRESHOLD_FREQ_RATE)
     }) for d in all_fc1_act]
     # Compute overlap
+    def get_type(type_A, type_B):
+        if type_A==type_B:
+            type_str = type_A
+        else:
+            if (type_A=='paraphrase' and type_B=='optiprompt') or (type_B=='paraphrase' and type_A=='optiprompt'):
+                type_str = f'mixte_paraphrase_optiprompt'
+            elif (type_A=='paraphrase' and type_B=='autoprompt-no-filter') or (type_B=='paraphrase' and type_A=='autoprompt-no-filter'):
+                type_str = f'mixte_paraphrase_autoprompt-no-filter'
+            elif (type_A=='optiprompt' and type_B=='autoprompt-no-filter') or (type_B=='optiprompt' and type_A=='autoprompt-no-filter'):
+                type_str = f'mixte_optiprompt_autoprompt-no-filter'
+        return type_str
     predict_triggered_overlap = flatten([[[[{
         'relation':rel,
         'template_A':d_A['template'],
@@ -188,7 +200,7 @@ if __name__ == "__main__":
         'prompt_A':d_A['prompt'],
         'prompt_B':d_B['prompt'],
         'layer': l,
-        'type': d_B['type'] if (d_B['type']==d_A['type']) else 'mixte',
+        'type': get_type(d_A['type'],d_B['type']),
         'overlap':(torch.mul(d_B['triggered'],d_A['triggered']).sum()/(d_B['triggered']+d_A['triggered']).sum()).item()}
             for d_B in all_fc1_act if d_B['relation']==rel and d_B['layer']==l]
                 for d_A in all_fc1_act if d_A['relation']==rel and d_A['layer']==l]
@@ -201,7 +213,7 @@ if __name__ == "__main__":
         columns=['relation', 'prompt', 'template', 'layer', 'count', 'treshold'])
     df_sensibility = pd.DataFrame(
         data=all_fc1_act,
-        columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'type'])
+        columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'ent', 'type'])
     df_sensibility['sensibility'] = df_sensibility['sensibility'].apply(
             lambda l: [x.item() for x in l]
         )
@@ -221,12 +233,14 @@ if __name__ == "__main__":
     #   METRICS
     # ---------------------
     # remove layers
-    df_scores = df_sensibility[['prompt','relation','micro', 'type', 'ppl']].set_index('prompt').drop_duplicates()
+    df_scores = df_sensibility[['prompt','relation','micro', 'type', 'ppl', 'ent']].set_index('prompt').drop_duplicates()
     # df_micro = df_sensibility[['prompt','relation','micro', 'type']].set_index('prompt').drop_duplicates().groupby(['prompt', 'type'])
     avg_micro = df_scores.groupby(['type','relation']).mean().groupby(['type']).mean()
+    max_micro = df_scores.groupby(['type','relation']).max().groupby(['type']).mean() # best template for each relation
     consistency = df_scores.groupby(['type', 'relation']).std().groupby(['type']).mean()
     print("Average: ", avg_micro)
     print("Consistency: ", consistency)
+    print("Max: ", max_micro)
 
 
     # measure distance in OPT input embedding between all pairs of templates
@@ -258,8 +272,30 @@ if __name__ == "__main__":
     # measure difference in prediction 
     df_overlap['d_out'] = [compute_agreement(all_preds[pA], all_preds[pB]) for pA, pB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
-    print('Metrics avg: ', df_overlap.groupby('type').mean())
-    print('Metrics std: ', df_overlap.groupby('type').std())
+    print('[type] Metrics avg: ', df_overlap.groupby('type').mean())
+    print('[type] Metrics std: ', df_overlap.groupby('type').std())
+    for layer in ['l03', 'l12', 'l20']:
+        print(f'[{layer}] Metrics avg: ', df_overlap[df_overlap['layer']==layer].groupby('type').mean())
+        print(f'[{layer}] All Metrics avg: ', df_overlap[df_overlap['layer']==layer].mean())
+
+    # Cluster templates according to output agreement
+    template_list = df_sensibility['template'].unique().tolist()
+    n_template = len(template_list)
+    full_d_out = np.zeros((n_template,n_template))
+    for d_out, pA, pB in zip(df_overlap['d_out'], df_overlap['template_A'], df_overlap['template_B']):
+        idx_A = template_list.index(pA)
+        idx_B = template_list.index(pB)
+        full_d_out[idx_A, idx_B] = d_out
+        full_d_out[idx_B, idx_A] = d_out # symmetric
+
+    dbscan = DBSCAN(eps=1/0.6, min_samples=2, metric="precomputed")
+    dbscan.fit(1/(full_d_out+0.00001)) # 1/d_out because we want a distance
+
+    template_clusters = []
+    for n in range(dbscan.labels_[-1]+1):
+        template_clusters.append([t for k,t in enumerate(template_list) if dbscan.labels_[k]==n])
+    df_sensibility['d_out_cluster'] = df_sensibility.apply(lambda x: dbscan.labels_[template_list.index(x['template'])], axis=1)
+    df_sensibility['cpmr_d_out'] = df_sensibility.apply(lambda x: full_d_out[template_list.index(x['template'])], axis=1)
 
     # ---------------------
     #   CORRELATION
@@ -275,7 +311,7 @@ if __name__ == "__main__":
         return pvalues
 
     metrics_pair = ['overlap', 'd_in', 'd_out']
-    metrics_solo = ['micro', 'ppl']
+    metrics_solo = ['micro', 'ppl', 'ent']
     control_pair = ['layer', 'relation',]
     control_solo = ['relation',]
 
@@ -335,7 +371,29 @@ if __name__ == "__main__":
     # ---------------------
     #   PLOTS
     # ---------------------
-    
+
+    import seaborn as sns
+
+    """
+    Compare prompts while controling the agreement
+    """
+    df_overlap_agreement = []
+    for t_agreement in [0.1, 0.3, 0.5, 0.7, 0.9]:
+        filtered = df_overlap[df_overlap['d_out']>(t_agreement-0.1)][df_overlap['d_out']<t_agreement+0.1]
+        filtered['agreement'] = [t_agreement,]*len(filtered)
+        df_overlap_agreement.append(filtered)
+        print(f'[{t_agreement}] Size: ', filtered.groupby('type').size())
+        print(f'[{t_agreement}] Metrics avg: ', filtered.groupby('type').mean())
+        # print(f'[{t_agreement}] Metrics std: ', df_overlap[df_overlap['d_out']>t_agreement].groupby('type').std())
+    df_overlap_agreement = pd.concat(df_overlap_agreement)
+
+    sns.set(font_scale=0.6)
+    g = sns.relplot(data=pd.melt(df_overlap_agreement, ['relation', 'template_A', 'template_B', 'prompt_A', 'prompt_B', 'layer', 'type', 'name', 'agreement']),
+                 x='agreement', y='value', hue='variable', kind='line', col='type')
+    plt.tight_layout(h_pad=2, w_pad=2)
+    # plt.show()
+    plt.savefig(os.path.join('..',save_dir,f'agreement.pdf'))
+
     """
     Display correlations
     """
@@ -360,7 +418,25 @@ if __name__ == "__main__":
                 fig.show()
                 fig.write_html(os.path.join('..',save_dir,f'corr_{corr_conf}_{prompt_type}.html'))
 
-    
+    """
+    Cluster templates given their agreements
+    """    
+    fig = reduce_proj(
+        df_sensibility,
+        x='template',
+        z='cpmr_d_out',
+        sl='relation',
+        c='d_out_cluster',
+        sb='type',
+        title=f"Reduce proj",
+        algo='tsne',
+        n=2,
+        discrete_colors=True,
+        n_neighbors=20,
+        size=10,
+    )
+    fig.show()
+    fig.write_html(os.path.join('..',save_dir,f'agreement_cluster.html'))
 
 
     """
@@ -467,3 +543,36 @@ if __name__ == "__main__":
     fig.show()
     fig.write_html(os.path.join('..',save_dir,f'micro_vs_ppl.html'))
 
+    """
+    Display entropy vs. ppl
+    """
+
+    fig = scatter_slider(
+        df_sensibility,
+        x='ent',
+        y='log_ppl',
+        s='layer',
+        c='type',
+        t='template',
+        sb='type',
+        title=f"Entropy vs. PPL",)
+
+    fig.show()
+    fig.write_html(os.path.join('..',save_dir,f'ent_vs_ppl.html'))
+
+    """
+    Display micro vs. entropy
+    """
+
+    fig = scatter_slider(
+        df_sensibility,
+        x='micro',
+        y='ent',
+        s='layer',
+        c='type',
+        t='template',
+        sb='type',
+        title=f"Micro vs. entropy",)
+
+    fig.show()
+    fig.write_html(os.path.join('..',save_dir,f'ent_vs_micro.html'))

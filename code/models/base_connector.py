@@ -279,8 +279,6 @@ class Base_Connector():
     """
 
     def run_batchanal(self, sentences_list, samples_list, try_cuda=True, training=True, filter_indices=None, index_list=None, vocab_to_common_vocab=None):
-        
-        # self.model.config.output_hidden_states=True
 
         if try_cuda and torch.cuda.device_count() > 0:
             self.try_cuda()
@@ -317,6 +315,8 @@ class Base_Connector():
         ppl = self.get_perplexity(logits, input.input_ids, predict_mask)
         # Get Entropy
         ent = self.get_entropy(logits, predict_mask)
+        # Get attention energy
+        k_dist = self.get_k_dist_from_attmaps(output.attentions, predict_mask)
              
 
         # During testing, return accuracy and top-k predictions
@@ -361,12 +361,19 @@ class Base_Connector():
             else:
                 preds.append(0)
                         
-        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl, ent, accu_pred
+        return log_probs, cor, tot, preds, topk, loss, common_vocab_loss, fc1_act, ppl, ent, accu_pred, k_dist
 
     def enable_output_hidden_states(self):
         self.config.output_hidden_states=True
+        self.model.config.output_hidden_states=True
+
+    def enable_output_attention_maps(self):
+        self.config.output_attentions=True
+        self.model.config.output_attentions=True
 
     def set_analyse_mode(self):
+
+        self.enable_output_attention_maps()
 
         layers = self.model.model.decoder.layers
         self.fc1_output={layer: torch.empty(0) for layer in layers}
@@ -380,7 +387,8 @@ class Base_Connector():
     def save_fc1_act_hook(self, layer) -> Callable:
         def fn(_, __, output):
             self.fc1_output[layer] = output.detach().cpu().half()
-        return fn
+        return fn   
+    
 
     def get_fc1_act(self):
         return self.fc1_output
@@ -416,3 +424,30 @@ class Base_Connector():
         log_prob = F.log_softmax(logits, dim=-1)
         prob = F.softmax(logits, dim=-1)
         return -(prob * log_prob).sum(-1)[predict_mask]
+    
+
+    def get_k_dist_from_attmaps(self, att_maps, predict_mask):
+        n_layers = len(att_maps)
+        k_dist = [None] * n_layers
+        predict_index = predict_mask.nonzero(as_tuple=True)[1].unsqueeze(-1)
+        arange = torch.arange(predict_mask.size(-1)).unsqueeze(0)
+        att_mask = torch.where(arange>(predict_index), 0, 1) # 1 means the position has to be masked
+        for l_i in range(n_layers):
+            batch_size, n_heads, d_1, d_2 = att_maps[l_i].shape
+            # we only consider the attention values of the token used for prediction
+            predict_attention = torch.stack([att[:, predict_index[ib].item()] for ib, att in enumerate(att_maps[l_i])])            
+            # enerfy treshold
+            treshold = 0.9
+            # tkn_sorted = this_map.contiguous().view((d_1, d_2)).sort(dim=-1, descending=True).values
+            tkn_sorted = predict_attention.contiguous().sort(dim=-1, descending=True).values
+            # tkn_exp = tkn_sorted.unsqueeze(1).expand((-1, d_2, -1))
+            tkn_exp = tkn_sorted.unsqueeze(2).expand((-1, -1, d_2, -1))
+            triang_mask = torch.ones((d_1, d_1)).tril(diagonal=0).unsqueeze(0).unsqueeze(0)
+            cumsum = (triang_mask * tkn_exp).sum(-1)  #
+            k = (cumsum <= treshold).sum(-1) + 1  #
+            # normalize k with the number of non masked tokens
+            true_n_tkn = att_mask.sum(-1)  # number of tokens after masking
+            k = k.float() / true_n_tkn.unsqueeze(-1).float() * 100
+            k_dist[l_i] = k.detach()
+        k_dist = torch.stack(k_dist)
+        return k_dist
