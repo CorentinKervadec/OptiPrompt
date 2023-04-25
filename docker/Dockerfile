@@ -29,6 +29,8 @@ RUN pip install seaborn
 RUN pip install --no-cache-dir fairseq
 # Hugging face Tranformer + acceleration lib
 RUN pip install --no-cache-dir transformers accelerate bitsandbytes
+RUN pip install datasets apache_beam mwparserfromhell
+RUN ln -s /usr/bin/python3 /usr/bin/python
 #######################################################################
 
 
