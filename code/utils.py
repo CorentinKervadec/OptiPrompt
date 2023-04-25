@@ -254,7 +254,7 @@ def prepare_for_dense_prompt(model):
 
 def load_optiprompt(model, output_dir, original_vocab_size, relation):
     prepare_for_dense_prompt(model)
-    logger.info("Loading OptiPrompt's [V]s..")
+    # logger.info("Loading OptiPrompt's [V]s..")
     with open(os.path.join(output_dir, f'{relation}.npy'), 'rb') as f:
         vs = np.load(f)
     
@@ -270,7 +270,7 @@ def free_optiprompt(model, original_vocab_size):
         del model.tokenizer.added_tokens_encoder[t]
     for idx in remove_idx_list:
         del model.tokenizer.added_tokens_decoder[idx]
-    logger.info('# vocab after removing optiptompts tokens: %d'%len(model.tokenizer))
+    # logger.info('# vocab after removing optiptompts tokens: %d'%len(model.tokenizer))
     assert original_vocab_size == len(model.tokenizer)
     # remove optiprompts embeddings
     ebd = model.model.resize_token_embeddings(len(model.tokenizer))

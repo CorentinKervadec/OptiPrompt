@@ -13,6 +13,7 @@ import pandas as pd
 import json
 from scipy.stats import pearsonr
 from sklearn.cluster import DBSCAN
+from tqdm import tqdm
 
 from transformers import AutoTokenizer
 from transformers import AutoModelForCausalLM
@@ -36,15 +37,15 @@ logger = logging.getLogger(__name__)
 # --------------------
 
 MODEL='opt-350m'
-EXP_NAME=f'opt-{MODEL}-autoprompt'
+EXP_NAME=f'{MODEL}'
 
 SENSIBILITY_TRESHOLD=0
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
 LOAD_FC1=[
-    f"../data/fc1/fc1_ent_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
+    # f"../data/fc1/fc1_att_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
         # f"../data/fc1/fc1_ppl_pred_data_{MODEL}_t0_autoprompt-filter.pickle",
-         f"../data/fc1/fc1_ent_ppl_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
-          f"../data/fc1/fc1_ent_ppl_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
+         f"../data/fc1/fc1_att_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
+          f"../data/fc1/fc1_att_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -70,6 +71,7 @@ def init_device(device):
     else:
         logger.info('# Running on CPU')
         n_gpu = 0
+    return device
 
 def set_seed(seed):
     random.seed(args.seed)
@@ -117,10 +119,12 @@ if __name__ == "__main__":
 
 
     # ----- init
-    init_device(args.device)
+    device = init_device(args.device)
     set_seed(args.seed)
     ## model
     model = build_model_by_name(args)
+    model.set_analyse_mode()
+    model.model.to(device)
     ## vocab
     if args.common_vocab_filename!='none':
         vocab_subset = load_vocab(args.common_vocab_filename)   
@@ -165,6 +169,9 @@ if __name__ == "__main__":
     [d.update({
         'type':get_type(d['prompt'])
     }) for d in all_fc1_act]
+    # [d.update({
+    #     'sensibility':np.array(d['sensibility'])
+    # }) for d in all_fc1_act]
     # # modify template for optiprompts # done during extraction
     # [d.update({
     #     'template+':f"{d['relation']}_{d['prompt'].split('seed')[-1]}_{d['template']}" if d['type']=='optiprompt' else d['template']
@@ -180,6 +187,10 @@ if __name__ == "__main__":
         'triggered':find_triggered_neurons(
             d['sensibility'],
             d['nb_facts']*TRIGGER_TRESHOLD_FREQ_RATE)
+    }) for d in all_fc1_act]
+    # add layer_nrg_att
+    [d.update({
+        'l_nrg_att':d['nrg_att'].mean().item(),
     }) for d in all_fc1_act]
     # Compute overlap
     def get_type(type_A, type_B):
@@ -201,6 +212,7 @@ if __name__ == "__main__":
         'prompt_B':d_B['prompt'],
         'layer': l,
         'type': get_type(d_A['type'],d_B['type']),
+        'sim_nrg_att':cos_sim(d_A['nrg_att'].numpy(),d_B['nrg_att'].numpy()),
         'overlap':(torch.mul(d_B['triggered'],d_A['triggered']).sum()/(d_B['triggered']+d_A['triggered']).sum()).item()}
             for d_B in all_fc1_act if d_B['relation']==rel and d_B['layer']==l]
                 for d_A in all_fc1_act if d_A['relation']==rel and d_A['layer']==l]
@@ -213,7 +225,7 @@ if __name__ == "__main__":
         columns=['relation', 'prompt', 'template', 'layer', 'count', 'treshold'])
     df_sensibility = pd.DataFrame(
         data=all_fc1_act,
-        columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'ent', 'type'])
+        columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'ent', 'type', 'l_nrg_att'])
     df_sensibility['sensibility'] = df_sensibility['sensibility'].apply(
             lambda l: [x.item() for x in l]
         )
@@ -223,12 +235,72 @@ if __name__ == "__main__":
     df_sensibility['log_ppl'] = np.log(df_sensibility['ppl'])
     df_overlap = pd.DataFrame(
         data=predict_triggered_overlap,
-        columns=['relation', 'template_A','template_B','prompt_A','prompt_B','layer','overlap', 'type'])
+        columns=['relation', 'template_A','template_B','prompt_A','prompt_B','layer','overlap', 'type', 'sim_nrg_att'])
     df_overlap['name'] = [ tA+'/'+tB for (tA, tB) in zip(df_overlap['template_A'], df_overlap['template_B']) ]
     # sort by layer
     df_count = df_count.sort_values(['layer'])
     df_overlap = df_overlap.sort_values(['layer','template_A','template_B'])
 
+    # ---------------------
+    #   TYPE SPECIFIC UNITS 
+    # ---------------------
+    n_layers = len(df_sensibility['layer'].unique())
+    n_units_layer = len(df_sensibility.sample(1).sensibility.item())
+    k_units = 50
+    df_sensibility['np_sensibility'] = df_sensibility['sensibility'].apply(lambda a: np.array(a))
+    avg_sensibility_per_type = df_sensibility[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean()
+    avg_sensibility_all_type = df_sensibility[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean().groupby(['layer']).mean() + 1e-9
+    norm_avg_sensibility_per_type = ((avg_sensibility_per_type - avg_sensibility_all_type) / avg_sensibility_all_type).reset_index()
+    norm_avg_sensibility_per_type = norm_avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x))
+    # get the index of the units with the highest positive difference with the average activation (layer, unit)
+    top_unit_positive_difference = norm_avg_sensibility_per_type.apply(lambda x: np.argsort(x)[::-1][:k_units]).apply(lambda x: [(int(i/n_units_layer), i%n_units_layer) for i in x])
+    # get the index of unit having the highest activation for all ptrompts    
+    tresh_top_5p = np.percentile(np.concatenate(avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x)).values), 80)
+    filtered_top_similar_units = avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x)).apply(lambda x: x > tresh_top_5p).reset_index()
+    top_similar_units = [(int(i/n_units_layer), i%n_units_layer) for i in range(filtered_top_similar_units.sample(1)['np_sensibility'].values[0].size) if all([filtered_top_similar_units[filtered_top_similar_units['type']==t]['np_sensibility'].item()[i] for t in filtered_top_similar_units['type'].unique()])]
+    top_similar_units = random.sample(top_similar_units, k_units)
+    
+    """
+    For each unit, give a list of the k tokens causing the highest activation.
+    Each item of the list is a tuple (token_id, activation)
+    """
+    k_token_unit = 10
+    topk_token_unit = [[[None] * k_token_unit for _ in range(n_units_layer)] for __ in range(n_layers)]
+    tokens_id = [[t_id,] for t_id in range(model.tokenizer.vocab_size)]
+    bz = 256
+    batch_tokens_id = [tokens_id[i: i+bz] for i in range(0,len(tokens_id),bz)]
+    for bti in tqdm(batch_tokens_id):
+        input_ids = torch.tensor(bti)
+        attention_mask = torch.ones_like(input_ids)
+        model.model(input_ids.to(device), attention_mask.to(device))
+        # get fc1
+        fc1_act = model.get_fc1_act()
+        fc1_act = [f.view(len(bti), 1, -1) for f in fc1_act.values()]
+        for l, nu in flatten(top_unit_positive_difference.values) + top_similar_units:
+            for b in range(len(bti)):
+                for i_top, top in enumerate(topk_token_unit[l][nu]):
+                    if (top is None) or (fc1_act[l][b,0,nu] > top[1]): # test is the current token is among the top one
+                        for m in range(len(topk_token_unit[l][nu])-2, i_top-1, -1): # shift
+                            topk_token_unit[l][nu][m+1] = topk_token_unit[l][nu][m]  # the last is pop outed
+                        topk_token_unit[l][nu][i_top] = (bti[b][0], fc1_act[l][b,0,nu])
+                        break
+    def unit2token(topk_units):
+        l, nu = topk_units
+        top_tokens = [model.tokenizer.decoder[i].replace('Ġ', ' ') for i,_ in topk_token_unit[l][nu]]
+        return [f'Layer {l}', f'Unit {nu}'] + top_tokens
+    # Create a file with top tokens given the prompt type
+    top_tokens_per_unit = top_unit_positive_difference.apply(lambda x:[unit2token(x_i) for x_i in x]).reset_index()
+    for t in top_tokens_per_unit['type'].unique():
+        text = '\n'.join(['\t'.join(l) for l in top_tokens_per_unit[top_tokens_per_unit['type']==t]['np_sensibility'].item()]) 
+        with open(os.path.join('..',save_dir,'.vs.'.join(top_tokens_per_unit['type'].unique()) + f'_token_unit_{t}.txt'), 'w') as f:
+            f.write(text)
+    # Create a file with top tokens in comon
+    top_tokens_per_unit_all = [unit2token(x_i) for x_i in top_similar_units]
+    text = '\n'.join(['\t'.join(l) for l in top_tokens_per_unit_all]) 
+    with open(os.path.join('..',save_dir,'.vs.'.join(top_tokens_per_unit['type'].unique()) + f'_token_unit_all.txt'), 'w') as f:
+        f.write(text)
+
+   
     # ---------------------
     #   METRICS
     # ---------------------
@@ -310,8 +382,8 @@ if __name__ == "__main__":
                 pvalues[r][c] = round(pearsonr(tmp[r], tmp[c])[1], 4)
         return pvalues
 
-    metrics_pair = ['overlap', 'd_in', 'd_out']
-    metrics_solo = ['micro', 'ppl', 'ent']
+    metrics_pair = ['overlap', 'd_in', 'd_out', 'sim_nrg_att']
+    metrics_solo = ['micro', 'ppl', 'ent', 'l_nrg_att']
     control_pair = ['layer', 'relation',]
     control_solo = ['relation',]
 
