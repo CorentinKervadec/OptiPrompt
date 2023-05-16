@@ -30,6 +30,34 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM
+from typing import Callable
+
+# # initialize the model and the tokenizer
+# model = AutoModelForCausalLM.from_pretrained('facebook/opt-350m')
+# tokenizer = AutoTokenizer.from_pretrained('facebook/opt-350m')
+
+# # initialize the hook
+# temp_hook = [] # temporary variable used to store the result of the hook
+# def save_input_hook() -> Callable:
+#     def fn(_, input, output):
+#         # input is what is fed to the layer
+#         temp_hook.append(input[0].detach().mean(1).cpu().squeeze().numpy())
+#     return fn
+# # register the hook the the layers 0.
+# # So we'll extract the representation at the input of layer 0
+# model.model.decoder.layers[0].register_forward_hook(save_input_hook())
+
+# # iterate on the data
+# candidates = ["Let", "blue", "."]
+# candidates_tkn = [tokenizer.encode(c,return_tensors="pt") for c in candidates]
+# candidates_tkn = [c[:, 1:] for c in candidates_tkn] # remove the <eos> token
+# [model.model(c_in) for c_in in candidates_tkn]
+
+# # get the embeddings
+# embeddings = {c:temp_hook[i] for i, c in enumerate(candidates)}
+
 # --------------------
 #
 #       PARAMS
@@ -45,7 +73,7 @@ LOAD_FC1=[
     # f"../data/fc1/fc1_att_data_{MODEL}_t0_optiprompt_fullvoc_fixetok.pickle",
         # f"../data/fc1/fc1_ppl_pred_data_{MODEL}_t0_autoprompt-filter.pickle",
          f"../data/fc1/fc1_att_data_{MODEL}_t0_autoprompt-no-filter_fullvoc.pickle",
-          f"../data/fc1/fc1_att_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
+        f"../data/fc1/fc1_att_data_{MODEL}_t0_rephrase_fullvoc.pickle"]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -111,6 +139,10 @@ def compute_agreement(pred_A, pred_B):
 
 if __name__ == "__main__":
 
+    random.seed(123)
+    torch.manual_seed(123)
+    torch.cuda.manual_seed(123)
+
     args = parse_args()
     
     save_dir = os.path.join(args.output_dir, EXP_NAME)
@@ -156,6 +188,8 @@ if __name__ == "__main__":
                    if (p['template'][-3:]=='[Y]' 
                        or p['template'][-4:]=='[Y]?'
                        or p['template'][-5:]=='[Y] .')]
+    # filtering
+
     # Prompt name
     def get_type(prompt):
         if 'paraphrase' in prompt:
@@ -244,31 +278,125 @@ if __name__ == "__main__":
     # ---------------------
     #   TYPE SPECIFIC UNITS 
     # ---------------------
+
+    # for i,l in enumerate(["l03", "l08", "l14", "l22"]):
+    #     ax = plt.subplot(2, 2, i+1)
+    #     data = df_sensibility[df_sensibility['layer']==l][['layer', 'type', 'sensibility', 'template']].groupby(['type'])['sensibility'].apply(list).apply(lambda x: np.concatenate(x)).reset_index()
+    #     n, bins, patches = plt.hist([data[data['type']==t]['sensibility'].item() for t in data['type'].unique()], color = ['red', 'green'], label = data['type'].unique(), density=True, histtype='stepfilled', alpha=0.4)
+    #     plt.yscale("log")
+    #     plt.title(l)
+    #     ax.legend()
+    #     plt.show()
+    # params
+    k_units = 500
+    k_token_unit = 100
+    percentile_max = 80
+    percentile_min = 20
+    # utils
     n_layers = len(df_sensibility['layer'].unique())
     n_units_layer = len(df_sensibility.sample(1).sensibility.item())
-    k_units = 50
+
+    # to numpy
     df_sensibility['np_sensibility'] = df_sensibility['sensibility'].apply(lambda a: np.array(a))
-    avg_sensibility_per_type = df_sensibility[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean()
-    avg_sensibility_all_type = df_sensibility[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean().groupby(['layer']).mean() + 1e-9
-    norm_avg_sensibility_per_type = ((avg_sensibility_per_type - avg_sensibility_all_type) / avg_sensibility_all_type).reset_index()
-    norm_avg_sensibility_per_type = norm_avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x))
-    # get the index of the units with the highest positive difference with the average activation (layer, unit)
-    top_unit_positive_difference = norm_avg_sensibility_per_type.apply(lambda x: np.argsort(x)[::-1][:k_units]).apply(lambda x: [(int(i/n_units_layer), i%n_units_layer) for i in x])
-    # get the index of unit having the highest activation for all ptrompts    
-    tresh_top_5p = np.percentile(np.concatenate(avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x)).values), 80)
-    filtered_top_similar_units = avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x)).apply(lambda x: x > tresh_top_5p).reset_index()
-    top_similar_units = [(int(i/n_units_layer), i%n_units_layer) for i in range(filtered_top_similar_units.sample(1)['np_sensibility'].values[0].size) if all([filtered_top_similar_units[filtered_top_similar_units['type']==t]['np_sensibility'].item()[i] for t in filtered_top_similar_units['type'].unique()])]
-    top_similar_units = random.sample(top_similar_units, k_units)
+
+    def select_units(data, rel, k, p_h=99.5, p_l=1):
+        """
+        Select the units (layer+index) being (a) the most type specific; and (b) shared among prompt types.
+
+        Output:
+        * top_unit_positive_difference: indeces of type-specific units (dataframe)
+        * top_similar_units: indeces of shared units (list)
+        """
+        if rel == 'all':
+            df = data
+        else:
+            df = data[data['relation']==rel]
+        #
+        n_layers = len(df['layer'].unique())
+        n_units_layer = len(df.sample(1).sensibility.item())
+        prompt_types = df['type'].unique()
+        # Compute avg sensibility per prompt type
+        avg_sensibility_per_type = df[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean()
     
+        avg_sensibility_per_type_flat = avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x))
+        # filter unit to only keep those with a sensibility in the top p percentile (per type)
+        high_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x>=np.percentile(x, p_h)).reset_index()
+        low_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x<=np.percentile(x, p_l)).reset_index()
+        # keep unit belonging to the top percentile for all prompt types
+        shared_units = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
+                if all([high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]['np_sensibility'].item()[i]\
+                    for t in prompt_types])]
+        shared_units = random.sample(shared_units, min(k_units, len(shared_units)))
+        # keep unit belonging to the top percentile for only one prompt types
+        typical_units = {}
+        for t in prompt_types:
+            this_prompt_high_unit = high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]
+            # othr_prompts_low_unit = low_sensibility_units_per_type[low_sensibility_units_per_type['type']!=t]
+            # all units which have a low sensibility with the others prompts
+            inter_othr_prompts_low_unit = [all([low_sensibility_units_per_type[low_sensibility_units_per_type['type']==t_bis]['np_sensibility'].item()[i]\
+                                            for t_bis in prompt_types if t_bis != t])\
+                                                for i in range(n_layers*n_units_layer)]
+            typical_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
+                    if all([this_prompt_high_unit['np_sensibility'].item()[i], inter_othr_prompts_low_unit[i]])]
+            typical_units[t] = random.sample(typical_units[t], min(k_units,len(typical_units[t])))
+        
+        return typical_units, shared_units
+    
+    # filter relations to only keep those with high accuracy
+    min_type_relation_accuracy = df_sensibility.groupby(['type', 'relation'])['micro'].mean().groupby('relation').min().reset_index()
+    relation_gt_30 = min_type_relation_accuracy[min_type_relation_accuracy['micro']>=30]['relation'].tolist()
+    selected_relations = relation_gt_30 #['all',] #+ relation_gt_30 # all: because we also want to compute the stats on all relations
+
+    # Extract index of units of interest
+    unit_set = {}
+    for r in selected_relations:
+        print(f"[UNITS] Select units for relation {r}")
+        typical_units, shared_units = select_units(data=df_sensibility, rel=r, k=k_units, p_h=percentile_max, p_l=percentile_min)
+        unit_set[r] = {'typical':typical_units, 'shared': shared_units}
+
+    unit_wikistats_path = 'unit-token-analyze'
+    unit_wikistats_files = [os.path.join(unit_wikistats_path,f) for f in os.listdir(unit_wikistats_path) if f.startswith('unit-token-wiki')]
+    loaded_wikistats = [{'tokens-count':None, 'unit_global_accum_avg':None} for _ in range(len(unit_wikistats_files))]
+    n_samples = 10000
+    for i,f in enumerate(unit_wikistats_files):
+        for ff in os.listdir(f):
+            key = 'none'
+            for s in ['tokens-count', 'unit_global_accum_avg']:
+                if ff.startswith(s):
+                    key = s
+            with open(os.path.join(f, ff), 'rb') as handle:
+                loaded_wikistats[i][key] = pickle.load(handle)
+    wiki_token_count = np.stack([d['tokens-count'] for d in loaded_wikistats]).sum(0)
+
+    # with open(os.path.join('..',save_dir,'tokens_count.txt'), 'w') as f:
+    #     f.write('\n'.join(['\t'.join((model.tokenizer.decode(t), str(wiki_token_count[t]))) for t in reversed(wiki_token_count.argsort())]) + '\n')
+
+    wiki_token_freq = wiki_token_count / wiki_token_count.sum()
+
+    wiki_unit_avg_act = [] # one matrix per layer
+    for l in range(len(loaded_wikistats[0]['unit_global_accum_avg'])): # accross layers
+        wiki_unit_avg_act.append(
+            np.stack([d['unit_global_accum_avg'][0] for d in loaded_wikistats]).mean(0))
+
+    for r in unit_set:
+        for t in df_sensibility['type'].unique():
+            wikiact_typical = np.array([wiki_unit_avg_act[x[0]][x[1]] for x in unit_set[r]['typical'][t]])
+            wikiact_typical_p = [np.percentile(wikiact_typical, p).item() for p in [25,  50, 75, 95]]
+            print(f'Relation {r}, Prompt {t}, Percentile wiki act: {wikiact_typical_p}')
+    # sns.histplot(np.concatenate(wiki_unit_avg_act))
+    # sns.histplot(pd.DataFrame([np.array([wiki_unit_avg_act[x[0]][x[1]] for x in unit_set['P1001']['typical'][tb]]) for tb in df_sensibility['type'].unique()], index=[ tb for tb in df_sensibility['type'].unique()]).T)
+
     """
     For each unit, give a list of the k tokens causing the highest activation.
     Each item of the list is a tuple (token_id, activation)
     """
-    k_token_unit = 10
+
     topk_token_unit = [[[None] * k_token_unit for _ in range(n_units_layer)] for __ in range(n_layers)]
     tokens_id = [[t_id,] for t_id in range(model.tokenizer.vocab_size)]
     bz = 256
     batch_tokens_id = [tokens_id[i: i+bz] for i in range(0,len(tokens_id),bz)]
+    print(f"[UNITS] Extracting unit-token stats")
+    unit_indeces = set(flatten([flatten(unit_set[r]['typical'].values()) + unit_set[r]['shared'] for r in unit_set]))
     for bti in tqdm(batch_tokens_id):
         input_ids = torch.tensor(bti)
         attention_mask = torch.ones_like(input_ids)
@@ -276,30 +404,51 @@ if __name__ == "__main__":
         # get fc1
         fc1_act = model.get_fc1_act()
         fc1_act = [f.view(len(bti), 1, -1) for f in fc1_act.values()]
-        for l, nu in flatten(top_unit_positive_difference.values) + top_similar_units:
+    
+        for l, nu in unit_indeces:
             for b in range(len(bti)):
-                for i_top, top in enumerate(topk_token_unit[l][nu]):
-                    if (top is None) or (fc1_act[l][b,0,nu] > top[1]): # test is the current token is among the top one
-                        for m in range(len(topk_token_unit[l][nu])-2, i_top-1, -1): # shift
-                            topk_token_unit[l][nu][m+1] = topk_token_unit[l][nu][m]  # the last is pop outed
-                        topk_token_unit[l][nu][i_top] = (bti[b][0], fc1_act[l][b,0,nu])
-                        break
+                i_top = len(topk_token_unit[l][nu]) -1 # reversed order
+                insert_id = None
+                for top in reversed(topk_token_unit[l][nu]):
+                    if (top is not None) and (fc1_act[l][b,0,nu] < top[1]):
+                        if (i_top == len(topk_token_unit[l][nu]) -1):
+                            break # lower than the lowest: stop here
+                        else:
+                            insert_id = i_top + 1
+                            break # insert in the previous index
+                    elif (top is None) or (fc1_act[l][b,0,nu] > top[1]): # test is the current token is among the top one
+                        if (i_top == 0):
+                            insert_id = i_top
+                            break # insert on the first index
+                        else: # higer than an item which is not the first one: continue
+                            i_top -= 1 # reversed order
+                if insert_id is not None:
+                    for m in range(len(topk_token_unit[l][nu])-2, insert_id-1, -1): # shift
+                        topk_token_unit[l][nu][m+1] = topk_token_unit[l][nu][m]  # the last is pop outed
+                    topk_token_unit[l][nu][insert_id] = (bti[b][0], fc1_act[l][b,0,nu])
+                
+                    
     def unit2token(topk_units):
         l, nu = topk_units
         top_tokens = [model.tokenizer.decoder[i].replace('Ġ', ' ') for i,_ in topk_token_unit[l][nu]]
-        return [f'Layer {l}', f'Unit {nu}'] + top_tokens
-    # Create a file with top tokens given the prompt type
-    top_tokens_per_unit = top_unit_positive_difference.apply(lambda x:[unit2token(x_i) for x_i in x]).reset_index()
-    for t in top_tokens_per_unit['type'].unique():
-        text = '\n'.join(['\t'.join(l) for l in top_tokens_per_unit[top_tokens_per_unit['type']==t]['np_sensibility'].item()]) 
-        with open(os.path.join('..',save_dir,'.vs.'.join(top_tokens_per_unit['type'].unique()) + f'_token_unit_{t}.txt'), 'w') as f:
-            f.write(text)
-    # Create a file with top tokens in comon
-    top_tokens_per_unit_all = [unit2token(x_i) for x_i in top_similar_units]
-    text = '\n'.join(['\t'.join(l) for l in top_tokens_per_unit_all]) 
-    with open(os.path.join('..',save_dir,'.vs.'.join(top_tokens_per_unit['type'].unique()) + f'_token_unit_all.txt'), 'w') as f:
-        f.write(text)
+        top_s = [str(s.item()) for _,s in topk_token_unit[l][nu]]
+        return [f'Layer {l}', f'Unit {nu}'] + top_tokens + top_s
+    
+    print(f"[UNITS] Saving stats")
+    for r in unit_set:
 
+        for t in df_sensibility['type'].unique():
+            # Create a file with top tokens given the prompt type
+            top_tokens_per_unit = [unit2token(x_i) for x_i in unit_set[r]['typical'][t]]
+            text = '\n'.join(['\t'.join(l) for l in top_tokens_per_unit]) + '\n'
+            with open(os.path.join('..',save_dir,'.vs.'.join(df_sensibility['type'].unique()) + f'_token_unit_{t}_{r}.txt'), 'w') as f:
+                f.write(text)
+        # Create a file with top tokens in comon
+        top_tokens_per_unit_all = [unit2token(x_i) for x_i in unit_set[r]['shared']]
+        text = '\n'.join(['\t'.join(l) for l in top_tokens_per_unit_all]) + '\n'
+        with open(os.path.join('..',save_dir,'.vs.'.join(df_sensibility['type'].unique()) + f'_token_unit_all_{r}.txt'), 'w') as f:
+            f.write(text)
+    print(f"[UNITS] Ended")
    
     # ---------------------
     #   METRICS
@@ -330,12 +479,12 @@ if __name__ == "__main__":
             original_vocab_size = len(list(model.tokenizer.get_vocab()))
             load_optiprompt(model, os.path.join("data/prompts/",p), original_vocab_size, r)
             flag_free_optiprompt = True
-            input = model.tokenizer.encode(t.split('_')[-1].replace('[X]','').replace('[Y]',''), return_tensors="pt")
+            input = model.tokenizer.encode(t.split('_')[-1].replace('[X]','').replace('[Y]',''), return_tensors="pt").to(device)
             model.model(input)
             input_rep_dic[t]=input_rep[-1]
             free_optiprompt(model, original_vocab_size)
         else:
-            input = model.tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt")
+            input = model.tokenizer.encode(t.replace('[X]','').replace('[Y]',''), return_tensors="pt").to(device)
             model.model(input)
             input_rep_dic[t]=input_rep[-1]
     del input_rep
