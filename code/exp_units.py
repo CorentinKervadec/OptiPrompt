@@ -6,6 +6,7 @@ from tqdm import tqdm
 import torch
 import os
 import logging
+from datetime import datetime
 # source code
 from models import build_model_by_name
 from fc1_utils import import_fc1, filter_templates
@@ -251,6 +252,7 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
     """
     Return a string containing the setup of the experiment
     """
+    this_date = datetime.utcnow().strftime('%Y%m%d-%H:%M:%S')
     this_data = data[data['type']==prompt_type][data['relation']==relation]
     n_templates = len(this_data['template'].unique())
     this_accuracy = this_data['micro'].mean()
@@ -265,7 +267,8 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
                 f'All prompt types: {all_prompts}',
                 f'Min template accuracy: {args.min_template_accuracy}',
                 f'Number of templates: {n_templates}',
-                f'Accuracy (this prompt and relation): {this_accuracy}',]
+                f'Accuracy (this prompt and relation): {this_accuracy}',
+                f'Date: {this_date}',]
     
     if mode == 'shared' or mode == 'typical':
         exp_setup += [
@@ -280,7 +283,11 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
             f'Percentile high: {args.percentile_high}',]
         
     setup_str = '\t'.join(exp_setup)
-    exp_name += f'{mode}_{prompt_type}_{relation}.txt'
+    exp_name += f'{mode}_{prompt_type}_{relation}_{this_date}.txt'
+
+    if args.fast_for_debug:
+        setup_str = 'DEBUG --------- '+setup_str
+        exp_name = 'debug_'+exp_name
 
     return setup_str, exp_name
 
@@ -307,12 +314,14 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
             df = data[data['relation']==rel]
 
         # Extract shared and typical units
-        print(f"[UNITS] Extracting shared and typical units for relation {rel}")
-        units[rel].update(unit_extraction(df, args.percentile_typical_max, args.percentile_typical_min, args.n_units, shared='shared' in modes, typical='typical' in modes))
+        if 'shared' in modes or 'typical' in modes:
+            print(f"[UNITS] Extracting shared and typical units for relation {rel}")
+            units[rel].update(unit_extraction(df, args.percentile_typical_max, args.percentile_typical_min, args.n_units, shared='shared' in modes, typical='typical' in modes))
         
         # Extract low and high units (use a different percentile)
-        print(f"[UNITS] Extracting high and low activation units for relation {rel}")
-        units[rel].update(unit_extraction(df, args.percentile_high, args.percentile_low, args.n_units, high='high' in modes, low='low' in modes))
+        if 'high' in modes or 'low' in modes:
+            print(f"[UNITS] Extracting high and low activation units for relation {rel}")
+            units[rel].update(unit_extraction(df, args.percentile_high, args.percentile_low, args.n_units, high='high' in modes, low='low' in modes))
 
         # save the units into a file so I don't have to re-compute them again and again
         # TODO
