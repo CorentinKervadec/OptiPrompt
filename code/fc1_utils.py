@@ -5,6 +5,7 @@ from analyze_prompts import count_activated_neurons, find_triggered_neurons
 import torch
 import pandas as pd
 import numpy as np
+import random
 
 TRIGGER_TRESHOLD_FREQ_RATE=0.2
 
@@ -145,7 +146,7 @@ def dataframe_fc1(fc1_data, mode):
 
     return df
 
-def filter_templates(data, min_template_accuracy):
+def filter_templates(data, min_template_accuracy, only_best_template=False):
     if 'sensibility' not in data:
         print('[FC1 Filtering] accuracy not available')
         exit(0)
@@ -157,15 +158,24 @@ def filter_templates(data, min_template_accuracy):
     max_type_min_relation_accuracy = data['sensibility'].groupby(['type', 'relation'])['micro'].max().groupby('relation').min().reset_index(name='min_acc')
     filtered_relations = max_type_min_relation_accuracy[max_type_min_relation_accuracy['min_acc'] > min_template_accuracy]['relation'].to_list()
     data['sensibility'] = data['sensibility'][data['sensibility']['relation'].isin(filtered_relations)]
-    print('[FC1 Filtering] All relations after filtering:', filtered_relations)
     """
     Filter templates to only keep those with an accuracy greater than min_template_accuracy
     """
     data['sensibility'] = data['sensibility'][data['sensibility']['micro']>=min_template_accuracy]
     filtered_templates = data['sensibility']['template'].drop_duplicates().to_list()
-    print('[FC1 Filtering] All templates after filtering:', filtered_templates)
+    
+    if only_best_template:
+        score_best_template = data['sensibility'].groupby(['type', 'relation'])['micro'].max().to_dict()
+        best_template = {r:{t:data['sensibility'][data['sensibility']['type']==t][data['sensibility']['relation']==r][data['sensibility']['micro']==score_best_template[(t,r)]]['template'].drop_duplicates().to_list() for t in data['sensibility']['type'].unique()} for r in data['sensibility']['relation'].unique()}
+        best_template = [[random.sample(best_template[r][t], 1) for t in best_template[r]] for r in best_template]
+        filtered_templates = flatten(best_template)
+        data['sensibility'] = data['sensibility'][data['sensibility']['template'].isin(filtered_templates)]
+
     # count the number of template per relation and prompt type
     data_size = data['sensibility'][['type', 'relation', 'template']].drop_duplicates().groupby(['type', 'relation']).size().reset_index(name='counts')
+
+    print('[FC1 Filtering] All relations after filtering:', filtered_relations)
+    print('[FC1 Filtering] All templates after filtering:', filtered_templates)
     print(f'[FC1 Filtering] Number of template per prompt type after filtering (>={min_template_accuracy}):')
     print(data_size.groupby(['type'])['counts'].apply(lambda x: {'mean':np.mean(x), 'max':np.max(x), 'min':np.min(x)}))
 

@@ -54,7 +54,8 @@ def parse_args():
     # filter by accuracy
     parser.add_argument('--min_template_accuracy', type=float, default=10.0, help='Remove all template with an accuracy lower than this treshold. From 0 to 100')
     parser.add_argument('--min_relation_accuracy_for_best_subset', type=float, default=30.0, help='Use to select a subset of relation having at least an accuracy of min_relation_accuracy with each prompt type')
-    
+    parser.add_argument('--best_template', action='store_true', help='Only keep the best template of each type-relation pair')
+
     # debug
     parser.add_argument('--fast_for_debug', action='store_true', help='toy version, for debugging')
     return parser.parse_args()
@@ -253,7 +254,10 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
     Return a string containing the setup of the experiment
     """
     this_date = datetime.utcnow().strftime('%Y%m%d-%H:%M:%S')
-    this_data = data[data['type']==prompt_type][data['relation']==relation]
+    if relation == 'all':
+        this_data = data[data['type']==prompt_type]
+    else:
+        this_data = data[data['type']==prompt_type][data['relation']==relation]
     n_templates = len(this_data['template'].unique())
     this_accuracy = this_data['micro'].mean()
     all_prompts = ','.join(data['type'].unique())
@@ -267,21 +271,32 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
                 f'All prompt types: {all_prompts}',
                 f'Min template accuracy: {args.min_template_accuracy}',
                 f'Number of templates: {n_templates}',
-                f'Accuracy (this prompt and relation): {this_accuracy}',
-                f'Date: {this_date}',]
+                f'Accuracy (this prompt and relation): {this_accuracy}',]
     
     if mode == 'shared' or mode == 'typical':
         exp_setup += [
             f'Percentile typical max: {args.percentile_typical_max}',
             f'Percentile typical min: {args.percentile_typical_min}',]
-        exp_name +=  '.vs.'.join(data['type'].unique())
+        exp_name +=  '.vs.'.join(data['type'].unique()) + '_'
     if mode == 'low':
         exp_setup += [
             f'Percentile low: {args.percentile_low}',]
     if mode == 'high':
         exp_setup += [
             f'Percentile high: {args.percentile_high}',]
-        
+    
+    if args.best_template:
+        if relation == 'all':
+            template = 'best'
+        else:
+            template = this_data['template'].unique().item()
+        exp_setup += [
+            f'Template: {template}'
+        ]
+
+    exp_setup += [
+        f'Date: {this_date}',]
+
     setup_str = '\t'.join(exp_setup)
     exp_name += f'{mode}_{prompt_type}_{relation}_{this_date}.txt'
 
@@ -383,11 +398,11 @@ if __name__ == "__main__":
     data = import_fc1(args.fc1_datapath, fc1_files, mode=['sensibility',])
     if args.fast_for_debug:
         # only two relations
-        data['sensibility'] = data['sensibility'][data['sensibility']['relation'].isin(['P1001',])]
+        data['sensibility'] = data['sensibility'][data['sensibility']['relation'].isin(['P1001','P176'])]
         # reduce the number of tokens and units to extract
         args.n_units = 3
         args.k_tokens = 2
-    data = filter_templates(data, args.min_template_accuracy)
+    data = filter_templates(data, args.min_template_accuracy, only_best_template=args.best_template)
 
     # Select a subset of relations with "high" accuracy (greater than min_relation_accuracy_for_best_subset fo all prompt types considered in the experiment)
     min_type_relation_accuracy = data['sensibility'].groupby(['type', 'relation'])['micro'].mean().groupby('relation').min().reset_index()
@@ -396,7 +411,7 @@ if __name__ == "__main__":
     print(f'[EXPERIMENT SETUP] Selection of best relations (>={args.min_relation_accuracy_for_best_subset}):', filtered_relations_2)
 
     if args.fast_for_debug:
-        selected_relations = ['P1001',]
+        selected_relations = ['all',]
 
     # which units to extract:
     modes = []
