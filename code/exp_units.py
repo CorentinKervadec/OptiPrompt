@@ -34,10 +34,10 @@ def parse_args():
     # parameters
     parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted')
     parser.add_argument('--k_tokens', type=int, default=100, help='How many tokens per units')
-    parser.add_argument('--percentile_high', type=int, default=80, help='Percentile for highest activated units')
-    parser.add_argument('--percentile_low', type=int, default=20, help='Percentile for lowest activated units')
-    parser.add_argument('--percentile_typical_max', type=int, default=90, help='Percentile for highest activated units')
-    parser.add_argument('--percentile_typical_min', type=int, default=10, help='Percentile for lowest activated units')
+    parser.add_argument('--percentile_high', type=int, default=90, help='Percentile for highest activated units')
+    parser.add_argument('--percentile_low', type=int, default=10, help='Percentile for lowest activated units')
+    parser.add_argument('--percentile_typical_max', type=int, default=80, help='Top percentile for shared and typical units')
+    parser.add_argument('--percentile_typical_min', type=int, default=20, help='Bottom percentile for share and typical units')
 
     # prompt types
     parser.add_argument('--autoprompt', action='store_true', help='adding autoprompt data')
@@ -245,6 +245,45 @@ def unit2token(model, unit_indices, topk_tokens):
     top_s = [str(s.item()) for _,s in topk_tokens] # token activations
     return '\t'.join([f'Layer {l}', f'Unit {nu}'] + top_tokens + top_s)
 
+# log ----
+
+def get_exp_setup(args, mode, prompt_type, relation, data):
+    """
+    Return a string containing the setup of the experiment
+    """
+    this_data = data[data['type']==prompt_type][data['relation']==relation]
+    n_templates = len(this_data['template'].unique())
+    this_accuracy = this_data['micro'].mean()
+    all_prompts = ','.join(data['type'].unique())
+    exp_name = 'token_unit_'
+    exp_setup = ['SETUP',
+                f'n_units: {args.n_units}',
+                f'k_tokens: {args.k_tokens}',
+                f'Seed: {args.seed}',
+                f'Model name: {args.model_name}',
+                f'This prompt type: {prompt_type}',
+                f'All prompt types: {all_prompts}',
+                f'Min template accuracy: {args.min_template_accuracy}',
+                f'Number of templates: {n_templates}',
+                f'Accuracy (this prompt and relation): {this_accuracy}',]
+    
+    if mode == 'shared' or mode == 'typical':
+        exp_setup += [
+            f'Percentile typical max: {args.percentile_typical_max}',
+            f'Percentile typical min: {args.percentile_typical_min}',]
+        exp_name +=  '.vs.'.join(data['type'].unique())
+    if mode == 'low':
+        exp_setup += [
+            f'Percentile low: {args.percentile_low}',]
+    if mode == 'high':
+        exp_setup += [
+            f'Percentile high: {args.percentile_high}',]
+        
+    setup_str = '\t'.join(exp_setup)
+    exp_name += f'{mode}_{prompt_type}_{relation}.txt'
+
+    return setup_str, exp_name
+
 # main -----
 
 def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'high', 'low'], debug=False):
@@ -292,10 +331,12 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
 
             for prompt_type, extracted_units in data_units.items(): 
                 # Create a file with typical/shared/high/low unit-tokens given the prompt type
+                setup_str, exp_name = get_exp_setup(args, m, prompt_type, rel, data)
                 unit_tokens_string = '\n'.join([unit2token(model, unit_indices, topk_token_unit[unit_indices]) for unit_indices in extracted_units]) + '\n'
-                filepath = os.path.join('..',args.save_dir,'.vs.'.join(data['type'].unique()) + f'_token_unit_{m}_{prompt_type}_{rel}.txt')
+                filepath = os.path.join('..',args.save_dir,exp_name)
                 print(f"[UNITS] Writing {filepath}...")
                 with open(filepath, 'w') as f:
+                    f.write(setup_str+'\n')
                     f.write(unit_tokens_string)
     print(f"[UNITS] Ended")
 
