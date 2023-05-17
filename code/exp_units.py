@@ -18,23 +18,43 @@ logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted')
+
+    # paths
+    parser.add_argument('--save_dir', type=str, default='/Users/corentk/ALiEN/Prompting_prompts/source_code/OptiPrompt/analyze/token_units')
+    parser.add_argument('--fc1_datapath', type=str, default='data/fc1')
+
+    # device, batch size
     parser.add_argument('--seed', type=int, default=123)
     parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
+
+    # language model
+    parser.add_argument('--model_name', type=str, default=f'facebook/opt-350m', help='the huggingface model name')
+
+    # parameters
+    parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted')
     parser.add_argument('--k_tokens', type=int, default=100, help='How many tokens per units')
     parser.add_argument('--percentile_high', type=int, default=80, help='Percentile for highest activated units')
     parser.add_argument('--percentile_low', type=int, default=20, help='Percentile for lowest activated units')
     parser.add_argument('--percentile_typical_max', type=int, default=90, help='Percentile for highest activated units')
     parser.add_argument('--percentile_typical_min', type=int, default=10, help='Percentile for lowest activated units')
-    parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
-    parser.add_argument('--save_dir', type=str, default='/Users/corentk/ALiEN/Prompting_prompts/source_code/OptiPrompt/analyze/token_units')
-    parser.add_argument('--fc1_datapath', type=str, default='data/fc1')
-    parser.add_argument('--model_name', type=str, default=f'facebook/opt-350m', help='the huggingface model name')
+
+    # prompt types
     parser.add_argument('--autoprompt', action='store_true', help='adding autoprompt data')
     parser.add_argument('--optiprompt', action='store_true', help='adding optiprompt data')
     parser.add_argument('--paraphrase', action='store_true', help='adding paraphrase data')
+    
+    # unit types
+    parser.add_argument('--shared_units', action='store_true', help='Extract shared units')
+    parser.add_argument('--typical_units', action='store_true', help='Extract typical units')
+    parser.add_argument('--high_units', action='store_true', help='Extract high units')
+    parser.add_argument('--low_units', action='store_true', help='Extract low units')
+
+    # filter by accuracy
     parser.add_argument('--min_template_accuracy', type=float, default=10.0, help='Remove all template with an accuracy lower than this treshold. From 0 to 100')
     parser.add_argument('--min_relation_accuracy_for_best_subset', type=float, default=30.0, help='Use to select a subset of relation having at least an accuracy of min_relation_accuracy with each prompt type')
+    
+    # debug
     parser.add_argument('--fast_for_debug', action='store_true', help='toy version, for debugging')
     return parser.parse_args()
 
@@ -328,5 +348,16 @@ if __name__ == "__main__":
     if args.fast_for_debug:
         selected_relations = ['P1001',]
 
+    # which units to extract:
+    modes = []
+    if args.shared_units:
+        modes.append('shared')
+    if args.typical_units:
+        modes.append('typical')
+    if args.high_units:
+        modes.append('high')
+    if args.low_units:
+        modes.append('low')
+
     # launch unit experiment
-    unit_experiment(model, data['sensibility'], selected_relations, args, modes=['shared', 'typical', 'high', 'low'], debug=args.fast_for_debug)
+    unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
