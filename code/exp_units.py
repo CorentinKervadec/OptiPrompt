@@ -289,7 +289,7 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
         if relation == 'all':
             template = 'best'
         else:
-            template = this_data['template'].unique().item()
+            template = list(this_data['template'].unique())
         exp_setup += [
             f'Template: {template}'
         ]
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     print(f'[EXPERIMENT SETUP] Selection of best relations (>={args.min_relation_accuracy_for_best_subset}):', filtered_relations_2)
 
     if args.fast_for_debug:
-        selected_relations = ['all',]
+        selected_relations = ['P1001','P176',]
 
     # which units to extract:
     modes = []
