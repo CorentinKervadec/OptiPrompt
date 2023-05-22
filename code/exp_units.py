@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--model_name', type=str, default=f'facebook/opt-350m', help='the huggingface model name')
 
     # parameters
-    parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted')
+    parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted, -1 to take all of them')
     parser.add_argument('--k_tokens', type=int, default=100, help='How many tokens per units')
 
     # prompt types
@@ -422,7 +422,8 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
                     f.write(setup_str+'\n')
                     f.write(unit_ids_string + '\n')   
 
-    units = sample_units(units, args.n_units)
+    if args.n_units != -1:
+        units = sample_units(units, args.n_units)
     
     print(f"[UNITS] Extracting unit-token stats")
     topk_token_unit = token_extraction(units, model, args.k_tokens, args.batch_size, modes, debug)
