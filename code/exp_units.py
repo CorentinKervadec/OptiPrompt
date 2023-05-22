@@ -35,10 +35,6 @@ def parse_args():
     # parameters
     parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted')
     parser.add_argument('--k_tokens', type=int, default=100, help='How many tokens per units')
-    parser.add_argument('--percentile_high', type=int, default=90, help='Percentile for highest activated units')
-    parser.add_argument('--percentile_low', type=int, default=10, help='Percentile for lowest activated units')
-    parser.add_argument('--percentile_typical_max', type=int, default=80, help='Top percentile for shared and typical units')
-    parser.add_argument('--percentile_typical_min', type=int, default=20, help='Bottom percentile for share and typical units')
 
     # prompt types
     parser.add_argument('--autoprompt', action='store_true', help='adding autoprompt data')
@@ -51,10 +47,21 @@ def parse_args():
     parser.add_argument('--high_units', action='store_true', help='Extract high units')
     parser.add_argument('--low_units', action='store_true', help='Extract low units')
 
+    # top/low unit filtering
+    parser.add_argument('--percentile_high', type=int, default=90, help='Percentile for highest activated units')
+    parser.add_argument('--percentile_low', type=int, default=10, help='Percentile for lowest activated units')
+    parser.add_argument('--percentile_typical_max', type=int, default=80, help='Top percentile for shared and typical units')
+    parser.add_argument('--percentile_typical_min', type=int, default=20, help='Bottom percentile for share and typical units')
+    parser.add_argument('--global_unit_filtering_threshold', action='store_true', help='Use a threshold based on all types together when extracting top/low units')
+
     # filter by accuracy
     parser.add_argument('--min_template_accuracy', type=float, default=10.0, help='Remove all template with an accuracy lower than this treshold. From 0 to 100')
     parser.add_argument('--min_relation_accuracy_for_best_subset', type=float, default=30.0, help='Use to select a subset of relation having at least an accuracy of min_relation_accuracy with each prompt type')
     parser.add_argument('--best_template', action='store_true', help='Only keep the best template of each type-relation pair')
+
+    # other filter
+    parser.add_argument('--layers', type=str, default='all', help='Limit the study to one or more layer, e.g. l00,l01')
+
 
     # debug
     parser.add_argument('--fast_for_debug', action='store_true', help='toy version, for debugging')
@@ -90,7 +97,7 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(args.seed)
 # unit extraction ----
 
-def get_typical(high_sensibility_units_per_type, low_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types):
+def get_typical(high_sensibility_units_per_type, low_sensibility_units_per_type, n_units_layer, n_layers, prompt_types):
     # keep units belonging to the top percentile for only one prompt types
     typical_units = {}
     for t in prompt_types:
@@ -102,38 +109,38 @@ def get_typical(high_sensibility_units_per_type, low_sensibility_units_per_type,
                                             for i in range(n_layers*n_units_layer)]
         typical_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
                 if all([this_prompt_high_unit['np_sensibility'].item()[i], inter_othr_prompts_low_unit[i]])]
-        typical_units[t] = random.sample(typical_units[t], min(n_units,len(typical_units[t])))
+        # typical_units[t] = random.sample(typical_units[t], min(n_units,len(typical_units[t])))
     return typical_units
 
-def get_shared(high_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types):
+def get_shared(high_sensibility_units_per_type, n_units_layer, n_layers, prompt_types):
     # keep units belonging to the top percentile for all prompt types
     shared_units = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
             if all([high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]['np_sensibility'].item()[i]\
                 for t in prompt_types])]
-    shared_units = random.sample(shared_units, min(n_units, len(shared_units)))
+    # shared_units = random.sample(shared_units, min(n_units, len(shared_units)))
     return shared_units
 
-def get_high(high_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types):
+def get_high(high_sensibility_units_per_type, n_units_layer, n_layers, prompt_types):
     # keep units having the highest activation
     high_units = {}
     for t in prompt_types:
         this_prompt_high_unit = high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]
         high_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
                 if this_prompt_high_unit['np_sensibility'].item()[i]]
-        high_units[t] = random.sample(high_units[t], min(n_units,len(high_units[t])))
+        # high_units[t] = random.sample(high_units[t], min(n_units,len(high_units[t])))
     return high_units
 
-def get_low(low_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types):
+def get_low(low_sensibility_units_per_type, n_units_layer, n_layers, prompt_types):
     # keep unit having the lowest activations
     low_units = {}
     for t in prompt_types:
         this_prompt_high_unit = low_sensibility_units_per_type[low_sensibility_units_per_type['type']==t]
         low_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
                 if this_prompt_high_unit['np_sensibility'].item()[i]]
-        low_units[t] = random.sample(low_units[t], min(n_units,len(low_units[t])))
+        # low_units[t] = random.sample(low_units[t], min(n_units,len(low_units[t])))
     return low_units
 
-def unit_extraction(df, percentile_high, percentile_low, n_units, shared=False, typical=False, high=False, low=False):
+def unit_extraction(df, threshold_mode, percentile_high, percentile_low, shared=False, typical=False, high=False, low=False):
     units = {}
 
     n_layers = len(df['layer'].unique())
@@ -145,18 +152,54 @@ def unit_extraction(df, percentile_high, percentile_low, n_units, shared=False, 
     avg_sensibility_per_type_flat = avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x))
     
     # filter unit to only keep those with a sensibility in the top p percentile (per type)
-    high_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x>=np.percentile(x, percentile_high)).reset_index()
-    low_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x<=np.percentile(x, percentile_low)).reset_index()
+
+    if threshold_mode == 'percentile_all':
+        high_threshold = np.percentile(np.concatenate(avg_sensibility_per_type_flat.values), percentile_high)
+        low_threshold = np.percentile(np.concatenate(avg_sensibility_per_type_flat.values), percentile_low)
+        str_high_threshold = str(high_threshold)
+        str_low_threshold = str(low_threshold)
+        print(f'[UNITS] Top threshold: sensibility>{high_threshold}')
+        print(f'[UNITS] Low threshold: sensibility<{low_threshold}')
+        # print type-top/low-percentile for comparison
+        str_high_threshold_type = ', '.join([f'{x} ({t})' for t,x in avg_sensibility_per_type_flat.apply(lambda x: np.percentile(x, percentile_high)).reset_index().values])
+        str_low_threshold_type = ', '.join([f'{x} ({t})' for t,x in avg_sensibility_per_type_flat.apply(lambda x: np.percentile(x, percentile_low)).reset_index().values])
+        print(f'[UNITS] (this threshold is not used) Type-Top threshold: sensibility> [{str_high_threshold_type}] percentile')
+        print(f'[UNITS] (this threshold is not used) Type-Low threshold: sensibility< [{str_low_threshold_type}] percentile')
+        high_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x>=high_threshold).reset_index()
+        low_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x<=low_threshold).reset_index()
+    elif threshold_mode == 'percentile_type':
+        str_high_threshold = ', '.join([f'{x} ({t})' for t,x in avg_sensibility_per_type_flat.apply(lambda x: np.percentile(x, percentile_high)).reset_index().values])
+        str_low_threshold = ', '.join([f'{x} ({t})' for t,x in avg_sensibility_per_type_flat.apply(lambda x: np.percentile(x, percentile_low)).reset_index().values])
+        print(f'[UNITS] Top threshold: sensibility> [{str_high_threshold}] percentile')
+        print(f'[UNITS] Top threshold: sensibility< [{str_low_threshold}] percentile')
+        high_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x>=np.percentile(x, percentile_high)).reset_index()
+        low_sensibility_units_per_type = avg_sensibility_per_type_flat.apply(lambda x: x<=np.percentile(x, percentile_low)).reset_index()
+
+    str_top = ','.join([f'{t}: '+str(x.sum()) for t,x in high_sensibility_units_per_type.values])
+    str_low = ','.join([f'{t}: '+str(x.sum()) for t,x in low_sensibility_units_per_type.values])
+    print(f'[UNITS] Number of top sensibility units: {str_top}')
+    print(f'[UNITS] NUmber of low sensibility units: {str_low}')
 
     # extract shared, typical, high and low units
     if shared:
-        units['shared'] = get_shared(high_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types)
+        units['shared'] = {
+            'data': get_shared(high_sensibility_units_per_type, n_units_layer, n_layers, prompt_types),
+            'high_threshold': str_high_threshold,
+            'low_threshold': str_low_threshold,}
     if typical:
-        units['typical'] = get_typical(high_sensibility_units_per_type, low_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types)
+        units['typical'] = {
+            'data': get_typical(high_sensibility_units_per_type, low_sensibility_units_per_type, n_units_layer, n_layers, prompt_types),
+            'high_threshold': str_high_threshold,
+            'low_threshold': str_low_threshold,}
     if high:
-        units['high'] = get_high(high_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types)
+        units['high'] = {
+            'data': get_high(high_sensibility_units_per_type, n_units_layer, n_layers, prompt_types),
+            'high_threshold': str_high_threshold,
+            'low_threshold': str_low_threshold,}
     if low:
-        units['low'] = get_low(low_sensibility_units_per_type, n_units, n_units_layer, n_layers, prompt_types)
+        units['low'] = {'data': get_low(low_sensibility_units_per_type, n_units_layer, n_layers, prompt_types),
+            'high_threshold': str_high_threshold,
+            'low_threshold': str_low_threshold,}
 
     return units
 
@@ -174,9 +217,9 @@ def token_extraction(units, model, k_tokens, batch_size, modes, debug):
     unit_indeces = []
     for m in modes:
         if m == 'shared':
-            unit_indeces += flatten([units[r][m] for r in units])
+            unit_indeces += flatten([units[r][m]['data'] for r in units])
         else:
-            unit_indeces += flatten([flatten(units[r][m].values()) for r in units])
+            unit_indeces += flatten([flatten(units[r][m]['data'].values()) for r in units])
     unit_indeces = set(unit_indeces)
 
     # initialize a list to store the k_tokens for each unit
@@ -247,9 +290,22 @@ def unit2token(model, unit_indices, topk_tokens):
     top_s = [str(s.item()) for _,s in topk_tokens] # token activations
     return '\t'.join([f'Layer {l}', f'Unit {nu}'] + top_tokens + top_s)
 
+def sample_units(units, n_units):
+    """
+    Randomly sampling n_units for the set of extracted units
+    """
+    for r in units:
+        for m in units[r]:
+            if m == 'shared':
+                units[r][m]['data'] = random.sample(units[r][m]['data'], min(n_units,len(units[r][m]['data'])))
+            else:
+                for t in units[r][m]['data']:
+                    units[r][m]['data'][t] = random.sample(units[r][m]['data'][t], min(n_units,len(units[r][m]['data'][t])))
+    return units
+
 # log ----
 
-def get_exp_setup(args, mode, prompt_type, relation, data):
+def get_exp_setup(args, mode, prompt_type, relation, data, str_high_threshold, str_low_threshold):
     """
     Return a string containing the setup of the experiment
     """
@@ -271,7 +327,9 @@ def get_exp_setup(args, mode, prompt_type, relation, data):
                 f'All prompt types: {all_prompts}',
                 f'Min template accuracy: {args.min_template_accuracy}',
                 f'Number of templates: {n_templates}',
-                f'Accuracy (this prompt and relation): {this_accuracy}',]
+                f'Accuracy (this prompt and relation): {this_accuracy}',
+                f'High threshold: {str_high_threshold}',
+                f'Low threshold: {str_low_threshold}']
     
     if mode == 'shared' or mode == 'typical':
         exp_setup += [
@@ -318,6 +376,11 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
     """
     units = {} # a dictionnary containing the indices of the extracted units
 
+    if args.global_unit_filtering_threshold:
+        threshold_mode = 'percentile_all' # compute the threshold on all type together
+    else: 
+        threshold_mode = 'percentile_type' # compute a type-based threshold
+
     for rel in relations:
 
         units[rel] = {}
@@ -331,31 +394,53 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
         # Extract shared and typical units
         if 'shared' in modes or 'typical' in modes:
             print(f"[UNITS] Extracting shared and typical units for relation {rel}")
-            units[rel].update(unit_extraction(df, args.percentile_typical_max, args.percentile_typical_min, args.n_units, shared='shared' in modes, typical='typical' in modes))
+            units[rel].update(unit_extraction(df, threshold_mode, args.percentile_typical_max, args.percentile_typical_min, shared='shared' in modes, typical='typical' in modes))
         
         # Extract low and high units (use a different percentile)
         if 'high' in modes or 'low' in modes:
             print(f"[UNITS] Extracting high and low activation units for relation {rel}")
-            units[rel].update(unit_extraction(df, args.percentile_high, args.percentile_low, args.n_units, high='high' in modes, low='low' in modes))
+            units[rel].update(unit_extraction(df, threshold_mode, args.percentile_high, args.percentile_low, high='high' in modes, low='low' in modes))
 
         # save the units into a file so I don't have to re-compute them again and again
         # TODO
 
+    # write units in a files
+    for r in units:
+        for m in units[r]:
+            str_high_threshold = units[r][m]['high_threshold']
+            str_low_threshold = units[r][m]['low_threshold']
+            if m == 'shared': # if writing shared unit-tokens, no need to create one file per prompt type
+                data_units = {'':units[r][m]['data']}
+            else:
+                data_units = units[r][m]['data']
+            for t in data_units:
+                setup_str, exp_name = get_exp_setup(args, m, t, r, data, str_high_threshold, str_low_threshold)
+                unit_ids_string = '\n'.join([f'Layer {l}\tUnit {u}' for l,u in data_units[t]]) 
+                filepath = os.path.join('..',args.save_dir,'unit_ids_'+exp_name)
+                print(f"[UNITS] Writing {filepath}...")
+                with open(filepath, 'w') as f:
+                    f.write(setup_str+'\n')
+                    f.write(unit_ids_string + '\n')   
+
+    units = sample_units(units, args.n_units)
+    
     print(f"[UNITS] Extracting unit-token stats")
     topk_token_unit = token_extraction(units, model, args.k_tokens, args.batch_size, modes, debug)
 
     print(f"[UNITS] Saving stats")
     for rel in relations:
-        for m in modes:
 
+        for m in modes:
+            str_high_threshold = units[rel][m]['high_threshold']
+            str_low_threshold = units[rel][m]['low_threshold']
             if m == 'shared': # if writing shared unit-tokens, no need to create one file per prompt type
-                data_units = {'':units[rel][m]}
+                data_units = {'':units[rel][m]['data']}
             else:
-                data_units = units[rel][m]
+                data_units = units[rel][m]['data']
 
             for prompt_type, extracted_units in data_units.items(): 
                 # Create a file with typical/shared/high/low unit-tokens given the prompt type
-                setup_str, exp_name = get_exp_setup(args, m, prompt_type, rel, data)
+                setup_str, exp_name = get_exp_setup(args, m, prompt_type, rel, data, str_high_threshold, str_low_threshold)
                 unit_tokens_string = '\n'.join([unit2token(model, unit_indices, topk_token_unit[unit_indices]) for unit_indices in extracted_units]) + '\n'
                 filepath = os.path.join('..',args.save_dir,exp_name)
                 print(f"[UNITS] Writing {filepath}...")
@@ -396,6 +481,10 @@ if __name__ == "__main__":
     if args.paraphrase:
         fc1_files += [f'fc1_att_data_{model_str}_t0_rephrase_fullvoc.pickle']
     data = import_fc1(args.fc1_datapath, fc1_files, mode=['sensibility',])
+
+    if args.layers != 'all':
+        data['sensibility'] = data['sensibility'][data['sensibility']['layer'].isin(args.layers.split(','))]
+
     if args.fast_for_debug:
         # only two relations
         data['sensibility'] = data['sensibility'][data['sensibility']['relation'].isin(['P1001','P176'])]
