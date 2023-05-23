@@ -140,6 +140,34 @@ def get_low(low_sensibility_units_per_type, n_units_layer, n_layers, prompt_type
         # low_units[t] = random.sample(low_units[t], min(n_units,len(low_units[t])))
     return low_units
 
+
+def plot_sensibility_dist(data, relations, args):
+    import pandas as pd
+    import seaborn as sns
+    for r in relations:
+        if r =='all':
+            df = data['sensibility']
+        else:
+            df = data['sensibility'][data['sensibility']['relation']==r]
+        # average over templates
+        avg_sensibility_per_type = df[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean()
+        # trick to unfold the array
+        dic = avg_sensibility_per_type.reset_index().to_dict()
+        n = len(dic['layer'])
+        data_dic = flatten([[{'layer':dic['layer'][i], 'type':dic['type'][i], 'val':dic['np_sensibility'][i][j]} for j in range(len(dic['np_sensibility'][i]))] for i in range(n)])
+        # data = flatten([[{'type':t, 'unit': i, 'val':x[i]} for i in range(len(x))] for t,x in avg_sensibility_per_type_flat.to_dict().items()])
+        df_plot = pd.DataFrame(data_dic)
+        labels = list(df_plot['type'].unique())
+        g = sns.FacetGrid(df_plot, col='layer', height=4, col_wrap=4)
+        g.map_dataframe(sns.histplot, x='val', hue='type', hue_order=labels, log_scale=(False,True),  element="step", legend='full', common_bins=False)
+        for ax in g.axes.ravel():
+            ax.legend(labels=labels)
+        path = os.path.join('..',args.save_dir,f'd_sensibility_{r}.pdf')
+        g.savefig(path)
+
+
+
+
 def unit_extraction(df, threshold_mode, percentile_high, percentile_low, shared=False, typical=False, high=False, low=False):
     units = {}
 
@@ -513,6 +541,8 @@ if __name__ == "__main__":
         modes.append('high')
     if args.low_units:
         modes.append('low')
+
+    # plot_sensibility_dist(data, selected_relations, args)
 
     # launch unit experiment
     unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
