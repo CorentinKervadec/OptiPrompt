@@ -1,7 +1,6 @@
 import os
 import argparse
 import pickle
-from analyze_prompts import count_activated_neurons, find_triggered_neurons
 import torch
 import pandas as pd
 import numpy as np
@@ -61,6 +60,8 @@ def preprocess_fc1(all_fc1_act, count=False, triggered=False, nrg_att=False, ove
     """
     Preprocess the fc1 data according to the arguments of the function
     """
+    from analyze_prompts import count_activated_neurons, find_triggered_neurons
+
     # ----- format  fc1
     print("[FC1] Formatting data...")    
     unique_relations = set(d['relation'] for d in all_fc1_act)
@@ -143,11 +144,21 @@ def dataframe_fc1(fc1_data, mode):
         df['name'] = [ tA+'/'+tB for (tA, tB) in zip(df['template_A'], df['template_B']) ]
         # sort by layer
         df = df.sort_values(['layer','template_A','template_B'])
-
+    elif mode == 'minimal':
+        df = pd.DataFrame(
+            data=fc1_data,
+            columns=['relation', 'prompt', 'template', 'layer', 'micro', 'ppl', 'ent', 'type'])
+        df['micro'] = df['micro'].apply(
+                lambda x: x*100
+            )
     return df
 
 def filter_templates(data, min_template_accuracy, only_best_template=False):
-    if 'sensibility' not in data:
+    if 'sensibility' in data:
+        m = 'sensibility'
+    elif 'minimal' in data:
+        m = 'minimal'
+    else:
         print('[FC1 Filtering] accuracy not available')
         exit(0)
 
@@ -155,24 +166,24 @@ def filter_templates(data, min_template_accuracy, only_best_template=False):
     Filter out relations where the best template for at least one prompt type is lower than min_template_accuracy
     This to avoid having relation with only one prompt type after the template filtering
     """
-    max_type_min_relation_accuracy = data['sensibility'].groupby(['type', 'relation'])['micro'].max().groupby('relation').min().reset_index(name='min_acc')
+    max_type_min_relation_accuracy = data[m].groupby(['type', 'relation'])['micro'].max().groupby('relation').min().reset_index(name='min_acc')
     filtered_relations = max_type_min_relation_accuracy[max_type_min_relation_accuracy['min_acc'] > min_template_accuracy]['relation'].to_list()
-    data['sensibility'] = data['sensibility'][data['sensibility']['relation'].isin(filtered_relations)]
+    data[m] = data[m][data[m]['relation'].isin(filtered_relations)]
     """
     Filter templates to only keep those with an accuracy greater than min_template_accuracy
     """
-    data['sensibility'] = data['sensibility'][data['sensibility']['micro']>=min_template_accuracy]
-    filtered_templates = data['sensibility']['template'].drop_duplicates().to_list()
+    data[m] = data[m][data[m]['micro']>=min_template_accuracy]
+    filtered_templates = data[m]['template'].drop_duplicates().to_list()
     
     if only_best_template:
-        score_best_template = data['sensibility'].groupby(['type', 'relation'])['micro'].max().to_dict()
-        best_template = {r:{t:data['sensibility'][data['sensibility']['type']==t][data['sensibility']['relation']==r][data['sensibility']['micro']==score_best_template[(t,r)]]['template'].drop_duplicates().to_list() for t in data['sensibility']['type'].unique()} for r in data['sensibility']['relation'].unique()}
+        score_best_template = data[m].groupby(['type', 'relation'])['micro'].max().to_dict()
+        best_template = {r:{t:data[m][data[m]['type']==t][data[m]['relation']==r][data[m]['micro']==score_best_template[(t,r)]]['template'].drop_duplicates().to_list() for t in data[m]['type'].unique()} for r in data[m]['relation'].unique()}
         best_template = [[random.sample(best_template[r][t], 1) for t in best_template[r]] for r in best_template]
         filtered_templates = flatten(best_template)
-        data['sensibility'] = data['sensibility'][data['sensibility']['template'].isin(filtered_templates)]
+        data[m] = data[m][data[m]['template'].isin(filtered_templates)]
 
     # count the number of template per relation and prompt type
-    data_size = data['sensibility'][['type', 'relation', 'template']].drop_duplicates().groupby(['type', 'relation']).size().reset_index(name='counts')
+    data_size = data[m][['type', 'relation', 'template']].drop_duplicates().groupby(['type', 'relation']).size().reset_index(name='counts')
 
     print('[FC1 Filtering] All relations after filtering:', filtered_relations)
     print('[FC1 Filtering] All templates after filtering:', filtered_templates)
@@ -202,6 +213,8 @@ def import_fc1(datapath, filenames, mode):
             d = preprocess_fc1(all_fc1_act, triggered=True, nrg_att=True)
         elif m=='overlap':
             d = preprocess_fc1(all_fc1_act, triggered=True, nrg_att=True, overlap=True)
+        elif m=='minimal':
+            d = preprocess_fc1(all_fc1_act)
         data[m] = dataframe_fc1(d, m)
     
     return data
