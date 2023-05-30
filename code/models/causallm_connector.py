@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 #
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+from accelerate import Accelerator
 import numpy as np
 from .base_connector import *
 
@@ -32,10 +33,13 @@ class CausalLM(Base_Connector):
 
         if self.model_name in LARGE_MODEL_LIST:
             # requires to create the ./offload_folder beforehand (already done in the container)
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, device_map="auto", offload_folder='/offload_folder', torch_dtype=torch.float16)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, device_map="auto", offload_folder='/offload_folder', torch_dtype=torch.float16 if args.fp16 else torch.float32)
         else:
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16 if args.fp16 else torch.float32)
         
+        accelerator = Accelerator()
+        self.model = accelerator.prepare(self.model)
+
         self.model.eval()
 
         self.EOS = self.tokenizer.eos_token
