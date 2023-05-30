@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=123)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
+    parser.add_argument('--fp16', action='store_true', help='use half precision')
 
     # language model
     parser.add_argument('--model_name', type=str, default=f'facebook/opt-350m', help='the huggingface model name')
@@ -430,10 +431,10 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
         else:
             df = data[data['relation']==rel]
 
-        count_sensibility = '\n'.join([f'Layer '+'l{:02d}'.format(l)+'\t' + '\t'.join([f'{t}: ' + str(avg_sensibility_per_type.to_dict()['np_sensibility'][('l{:02d}'.format(l),t)].sum()) for t in df['type'].unique()]) for l in range(24)])
+        # count_sensibility = '\n'.join([f'Layer '+'l{:02d}'.format(l)+'\t' + '\t'.join([f'{t}: ' + str(avg_sensibility_per_type.to_dict()['np_sensibility'][('l{:02d}'.format(l),t)].sum()) for t in df['type'].unique()]) for l in range(24)])
         
-        print(f"[UNITS] Sensibility count for {rel}:")
-        print(count_sensibility)
+        # print(f"[UNITS] Sensibility count for {rel}:")
+        # print(count_sensibility)
 
         # Extract shared and typical units
         if 'shared' in modes or 'typical' in modes:
@@ -444,9 +445,6 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
         if 'high' in modes or 'low' in modes:
             print(f"[UNITS] Extracting high and low activation units for relation {rel}")
             units[rel].update(unit_extraction(df, threshold_mode, args.percentile_high, args.percentile_low, high='high' in modes, low='low' in modes))
-
-        # save the units into a file so I don't have to re-compute them again and again
-        # TODO
 
     # write units in a files
     for r in units:
@@ -558,7 +556,7 @@ if __name__ == "__main__":
     if args.low_units:
         modes.append('low')
 
-    plot_sensibility_dist(data, selected_relations, args)
+    # plot_sensibility_dist(data, selected_relations, args)
 
     # launch unit experiment
     unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
