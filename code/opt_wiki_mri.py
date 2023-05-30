@@ -54,13 +54,15 @@ def update_token_unit(unit_tokens, fc1_act, layer, unique_id, token_ids, tokens_
     # compute the unit-token activations for the batch, on the device
     batch_unit_token_cum = torch.matmul(index_mask.to(device), fc1_act[layer].to(device))
     # update the cumuluative average
-    unit_tokens[layer][unique_id] = cumulative_average(
-        new_item    = batch_unit_token_cum,
-        new_count   = tokens_count[unique_id].unsqueeze(-1),
-        old_count   = old_token_count[unique_id].unsqueeze(-1),
-        old_average = unit_tokens[l][unique_id.to(save_device)],
-        device      = device,
-    ).to(save_device)
+    unit_tokens[layer][unique_id] = batch_unit_token_cum.to(save_device)
+    
+    # cumulative_average(
+    #     new_item    = batch_unit_token_cum,
+    #     new_count   = tokens_count[unique_id].unsqueeze(-1),
+    #     old_count   = old_token_count[unique_id].unsqueeze(-1),
+    #     old_average = unit_tokens[l][unique_id.to(save_device)],
+    #     device      = device,
+    # ).to(save_device)
     return unit_tokens
 
 if __name__ == "__main__":
@@ -114,13 +116,13 @@ if __name__ == "__main__":
     * unit_tokens_accum_avg: For each token, provides the average unit activation
     * unit_global_accum_avg: Provides the average unit activation
     """
-    unit_tokens_accum_avg = {}
+    unit_tokens_accum = {}
     if args.compute_token_units_input:
-        unit_tokens_accum_avg['input'] = [torch.full(size=(n_vocab, n_units), fill_value=0.0) for l in range(n_layers)]
+        unit_tokens_accum['input'] = [torch.full(size=(n_vocab, n_units), fill_value=0.0, dtype=torch.float16) for l in range(n_layers)]
     if args.compute_token_units_output:
-        unit_tokens_accum_avg['output'] = [torch.full(size=(n_vocab, n_units), fill_value=0.0) for l in range(n_layers)]
+        unit_tokens_accum['output'] = [torch.full(size=(n_vocab, n_units), fill_value=0.0, dtype=torch.float16) for l in range(n_layers)]
     if args.compute_global_units:
-        unit_global_accum_avg = [torch.full(size=(n_units,), fill_value=0.0) for l in range(n_layers)]
+        unit_global_accum = [torch.full(size=(n_units,), fill_value=0.0) for l in range(n_layers)]
 
     # process data: tokenize/slice/batch
     wikidata = wikidata.map(lambda s: model.tokenizer(s['text']), num_proc=4) # tokenize
@@ -137,6 +139,8 @@ if __name__ == "__main__":
         # exctract fc1 activations
         fc1_act = model.get_fc1_act()
         fc1_act = list(fc1_act.values())
+        # relu
+        fc1_act = [torch.relu(f.to(device)) for f in fc1_act]
         # accumulate input and output token ids
         tokens_ids = {
             'input': input_ids.flatten().to(device),
@@ -146,7 +150,7 @@ if __name__ == "__main__":
         unique_id = {}
         old_token_count = {}
 
-        for mode in unit_tokens_accum_avg.keys():
+        for mode in unit_tokens_accum.keys():
             uni_res = torch.unique(tokens_ids[mode], return_counts=True)
             unique_id[mode] = uni_res[0]
             count_id = uni_res[1]
@@ -156,9 +160,9 @@ if __name__ == "__main__":
         # for each layer accumulate the unit-token association
         for l in range(n_layers):
             # per token stats
-            for mode in unit_tokens_accum_avg.keys():
-                unit_tokens_accum_avg[mode] = update_token_unit(
-                    unit_tokens=unit_tokens_accum_avg[mode],
+            for mode in unit_tokens_accum.keys():
+                unit_tokens_accum[mode] = update_token_unit(
+                    unit_tokens=unit_tokens_accum[mode],
                     fc1_act=fc1_act,
                     layer=l,
                     unique_id=unique_id[mode],
@@ -168,11 +172,11 @@ if __name__ == "__main__":
                     device=device,)
             # global stats
             if args.compute_global_units: # deprecated
-                unit_global_accum_avg[l] = cumulative_average(
+                unit_global_accum[l] = cumulative_average(
                     new_item    = fc1_act[l].sum(0),
                     new_count   = tokens_count.sum(),
                     old_count   = old_token_count.sum(),
-                    old_average = unit_global_accum_avg[l],
+                    old_average = unit_global_accum[l],
                     device      = device,
                 ).cpu()
 
@@ -188,13 +192,13 @@ if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
 if args.compute_global_units:
-    with open(os.path.join(save_dir,f'unit_global_accum_avg-{exp_name}.pickle'), 'wb') as handle:
-        pickle.dump(unit_global_accum_avg, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(os.path.join(save_dir,f'unit_global_accum-{exp_name}.pickle'), 'wb') as handle:
+        pickle.dump(unit_global_accum, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 with open(os.path.join(save_dir, f'tokens-count-{exp_name}.pickle'), 'wb') as handle:
     pickle.dump(tokens_count, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if args.compute_token_units_input or args.compute_token_units_output:
-    with open(os.path.join(save_dir,f'unit_tokens_accum_avg-{exp_name}.pickle'), 'wb') as handle:
-        pickle.dump(unit_tokens_accum_avg, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(os.path.join(save_dir,f'unit_tokens_accum-{exp_name}.pickle'), 'wb') as handle:
+        pickle.dump(unit_tokens_accum, handle, protocol=pickle.HIGHEST_PROTOCOL)
 print('Done!')
