@@ -20,7 +20,7 @@ parser.add_argument('--window_size', type=int, default=15)
 parser.add_argument('--window_stride', type=int, default=15)
 parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
 parser.add_argument('--output_dir', type=str, default='./unit-token-analyze', help='the output directory to store prediction results')
-parser.add_argument('--compute_global_units', default=True, help='whether to compute global units stats')
+parser.add_argument('--compute_global_units', default=False, help='whether to compute global units stats')
 parser.add_argument('--compute_token_units', default=True, help='whether to compute tokens units stats')
 parser.add_argument('--fp16', action='store_true', help='use half precision')
 
