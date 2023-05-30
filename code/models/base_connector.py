@@ -370,9 +370,10 @@ class Base_Connector():
         self.config.output_attentions=True
         self.model.config.output_attentions=True
 
-    def set_analyse_mode(self):
+    def set_analyse_mode(self, attention=True):
 
-        self.enable_output_attention_maps()
+        if attention:
+            self.enable_output_attention_maps()
 
         layers = self.model.model.decoder.layers
         self.fc1_output={layer: torch.empty(0) for layer in layers}
