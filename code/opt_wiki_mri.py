@@ -15,7 +15,7 @@ parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help=
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 parser.add_argument('--seed', type=int, default=-1)
-parser.add_argument('--n_samples', type=int, default=100)
+parser.add_argument('--n_samples', type=int, default=100000)
 parser.add_argument('--window_size', type=int, default=15)
 parser.add_argument('--window_stride', type=int, default=15)
 parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
