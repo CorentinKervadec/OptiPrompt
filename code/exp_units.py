@@ -159,13 +159,24 @@ def plot_sensibility_dist(data, relations, args):
         df_plot = pd.DataFrame(data_dic)
         labels = list(df_plot['type'].unique())
         g = sns.FacetGrid(df_plot, col='layer', height=4, col_wrap=4)
-        g.map_dataframe(sns.histplot, x='val', hue='type', hue_order=labels, log_scale=(False,True),  element="step", legend='full', common_bins=False)
+        g.map_dataframe(sns.histplot, x='val', hue='type', hue_order=labels, log_scale=(False,True),  element="step", legend='full', common_bins=False, bins=100)
         for ax in g.axes.ravel():
             ax.legend(labels=labels)
         path = os.path.join('..',args.save_dir,f'd_sensibility_{r}.pdf')
         g.savefig(path)
-
-
+        # cpt sensibility
+        g2 = sns.catplot(data=df_plot.groupby(['type', 'layer']).sum().reset_index(), x='type', y='val', col='layer', kind='bar', height=4, col_wrap=4)
+        g2.despine(left=True)
+        g2.fig.tight_layout()
+        path = os.path.join('..',args.save_dir,f'cpt_sensibility_{r}.pdf')
+        g2.savefig(path)
+        # cpt non zero sensibility
+        df_plot['non_zero'] = df_plot['val']!=0
+        g3 = sns.catplot(data=df_plot.groupby(['type', 'layer']).sum().reset_index(), x='type', y='non_zero', col='layer', kind='bar', height=4, col_wrap=4)
+        g3.despine(left=True)
+        g3.fig.tight_layout()
+        path = os.path.join('..',args.save_dir,f'nz_sensibility_{r}.pdf')
+        g3.savefig(path)      
 
 
 def unit_extraction(df, threshold_mode, percentile_high, percentile_low, shared=False, typical=False, high=False, low=False):
@@ -419,6 +430,11 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
         else:
             df = data[data['relation']==rel]
 
+        count_sensibility = '\n'.join([f'Layer '+'l{:02d}'.format(l)+'\t' + '\t'.join([f'{t}: ' + str(avg_sensibility_per_type.to_dict()['np_sensibility'][('l{:02d}'.format(l),t)].sum()) for t in df['type'].unique()]) for l in range(24)])
+        
+        print(f"[UNITS] Sensibility count for {rel}:")
+        print(count_sensibility)
+
         # Extract shared and typical units
         if 'shared' in modes or 'typical' in modes:
             print(f"[UNITS] Extracting shared and typical units for relation {rel}")
@@ -542,7 +558,7 @@ if __name__ == "__main__":
     if args.low_units:
         modes.append('low')
 
-    # plot_sensibility_dist(data, selected_relations, args)
+    plot_sensibility_dist(data, selected_relations, args)
 
     # launch unit experiment
     unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
