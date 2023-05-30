@@ -74,7 +74,7 @@ if __name__ == "__main__":
     # init data
     wikidata = load_dataset("wikipedia", "20220301.en", split='train')
     # random sample
-    if args.samples > 0:
+    if args.n_samples > 0:
         random_idx = random.sample(range(len(wikidata)), args.n_samples)
         wikidata = wikidata.select(random_idx)
 
