@@ -1,13 +1,14 @@
 import pickle
 import os
 import torch
+import torch.nn.functional as F
 from tqdm import tqdm
 from transformers import AutoTokenizer
 import argparse
 
-PICKLE_NAME = './unit-token-wiki-s100000-concat69.pickle'
+PICKLE_NAME = './unit_token_wiki_100000/unit-token-wiki-s100000-concat69.pickle'
 MAX_TOKENS = 500
-OUTPUT_PATH = './unit-token-wiki-s100000-concat69_2'
+OUTPUT_PATH = './unit_token_wiki_100000/unit-token-wiki-s100000-concat69_2'
 
 parser = argparse.ArgumentParser(description='OPTCorpus generation')
 
@@ -30,8 +31,25 @@ diversity = {'input':[], 'output':[]}
 
 # extract the top token for each unit
 for m in ['input', 'output']:
+    # tokens stats
+    with open(OUTPUT_PATH+f'-{m}-token-stats.tsv', 'w') as f:
+        f.write('\t'.join(['token', 'count', 'avg_act', 'max_act', 'excitant_ratio']))
+        per_token_max_act = torch.max(torch.concat(data['unit_tokens'][m], dim=-1), dim=-1)
+        per_token_avg_act = torch.mean(torch.concat(data['unit_tokens'][m], dim=-1), dim=-1)
+        excitant_ratio = (per_token_max_act / torch.sqrt(data['tokens-count'][m]))
+        excitant_ratio = torch.where(data['tokens-count'][m]==0, torch.zeros_like(excitant_ratio), excitant_ratio)
+        for i, tkn in enumerate(data['tokens-count'][m]):
+            decoded = tokenizer.decode(tkn)
+            line = '/t'.join([
+                decoded,\
+                str(data['tokens-count'][m][i].item()),\
+                str(per_token_avg_act[i].item()),\
+                str(per_token_max_act[i].item()),\
+                str(excitant_ratio[i].item()),\
+                    ])
+    # unit stats
     with open(OUTPUT_PATH+f'-{m}.tsv', 'w') as f:
-        f.write('\t'.join(['Layer', 'Unit', 'avg_act_uni', 'avg_act_true','energy', 'q99', 'Tokens'])+'\n')
+        f.write('\t'.join(['Layer', 'Unit', 'avg_act_uni', 'avg_act_true','energy', 'q99', 'Entropy', 'Uniqueness', 'Tokens'])+'\n')
         for l, data_layer in enumerate(data['unit_tokens'][m]):
             # transpose to get [n-units, n-tokens]
             data_layer = data_layer.t()
@@ -45,9 +63,10 @@ for m in ['input', 'output']:
             energy = data_layer.sum(-1)
             # compute token diversity in that layer
             units_token_distribution = data_layer / (energy.unsqueeze(-1)+1e-9) # normalised by the energy = how is distributed the energy across tokens.
-            aggreg_mask = torch.sum(q99_mask, dim=0) / torch.sum(q99_mask)
-            ent_aggreg = torch.sum(-aggreg_mask*torch.log(aggreg_mask+1e-12))
-            diversity[m].append(ent_aggreg)
+            units_token_entropy = torch.sum(-units_token_distribution*torch.log(units_token_distribution+1e-12), dim=-1)
+            # aggreg_mask = torch.sum(q99_mask, dim=0) / torch.sum(q99_mask)
+            # ent_aggreg = torch.sum(-aggreg_mask*torch.log(aggreg_mask+1e-12))
+            # diversity[m].append(ent_aggreg)
             # average activation
             avg_act_uniform_dist = data_layer.mean(-1)
             avg_act_true_dist = (data_layer.float() * data['tokens-count'][m].unsqueeze(0)).mean(-1)
@@ -56,9 +75,11 @@ for m in ['input', 'output']:
                 unit_data = [avg_act_uniform_dist[unit_idx].item(),\
                              avg_act_true_dist[unit_idx].item(),\
                              energy[unit_idx].item(),\
-                             q99[unit_idx].item()]
+                             q99[unit_idx].item(),\
+                             units_token_entropy[unit_idx].item(),]
                 # measure how much this unit is different from the others
-
+                uniqueness = F.kl_div(units_token_distribution[unit_idx], units_token_distribution).mean()
+                unit_data.append(uniqueness.item())
                 # extract the most associated tokens
                 idx_q99_tokens = indices[unit_idx][unit_q99_mask]
                 if args.decode_tokens:
