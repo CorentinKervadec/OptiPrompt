@@ -8,11 +8,11 @@ import torch
 from typing import Callable
 import pickle
 
-OUTPUT_PATH = './analyze'
+OUTPUT_PATH = '../../analyze'
 model_name = 'facebook/opt-350m'
 model_string = model_name.split('/')[-1
                                      ]
-data_dir = "./data/filtered_LAMA_opt"
+data_dir = "../../data/filtered_LAMA_opt"
 batch_size=128
 
 """ Initialise the model using the optiprompt wrapper.
@@ -38,7 +38,7 @@ model_name = 'opt-350m'
 files = [f'fc1_att_data_{model_name}_t0_autoprompt-no-filter_fullvoc.pickle', 
          f'fc1_att_data_{model_name}_t0_optiprompt_fullvoc_fixetok.pickle',
          f'fc1_att_data_{model_name}_t0_rephrase_fullvoc.pickle']
-datapath = 'data/fc1'
+datapath = '../../data/fc1_data'
 
 # import the data from the pickle files
 mode = 'minimal'
@@ -121,9 +121,11 @@ for prompt_type in df_templates['type'].unique():
                     fc1_grad = fc1_grad.sum(dim=0)
                     # add to the grad_store
                     fc1_grad_store[relation][i_l] += fc1_grad.cpu()
+                # zero the gradient to avoid accumulation between batches
+                model.model.zero_grad()
 
         # Normalise the gradient accumulation to get the distribution (over all layers)
-        fc1_grad_store[relation] = fc1_grad_store[relation] / len(templates_list)
+        fc1_grad_store[relation] = fc1_grad_store[relation] / (len(templates_list)*len(samples))
     # save the average grad dist over relation 
     stack_rel_grad = torch.stack(list(fc1_grad_store.values()), dim=0)
     fc1_grad_dist = {
@@ -133,3 +135,11 @@ for prompt_type in df_templates['type'].unique():
     save_path = os.path.join(OUTPUT_PATH, f'{model_string}_{prompt_type}_grad_analysis.pickle')
     with open(save_path, 'wb') as handle:
         pickle.dump(fc1_grad_dist, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # free mem
+    # cpu
+    del fc1_grad_store
+    del stack_rel_grad
+    del fc1_grad_dist
+    # device
+
