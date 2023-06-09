@@ -6,10 +6,14 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 import argparse
 
-PICKLE_NAME = './unit_token_wiki_100000/unit-token-wiki-s100000-concat69.pickle'
+PICKLE_NAME = '../../unit_token_wiki_100000/unit-token-wiki-s100000-concat69.pickle'
 MAX_TOKENS = 500
-OUTPUT_PATH = './unit_token_wiki_100000/unit-token-wiki-s100000-concat69_2'
-
+OUTPUT_PATH = '../../unit_token_wiki_100000/unit-token-wiki-s100000-concat69_2'
+REPLACE = {'\n':'__NEWLINE__',
+           '\t':'__TAB__',
+           '\s':'__SPACE__',
+           ' ':'__SPACE__',
+           '    ':'__TAB__'}
 parser = argparse.ArgumentParser(description='OPTCorpus generation')
 
 # Data selection
@@ -33,26 +37,36 @@ diversity = {'input':[], 'output':[]}
 for m in ['input', 'output']:
     # tokens stats
     with open(OUTPUT_PATH+f'-{m}-token-stats.tsv', 'w') as f:
-        f.write('\t'.join(['token', 'count', 'avg_act', 'max_act', 'excitant_ratio']))
-        per_token_max_act = torch.max(torch.concat(data['unit_tokens'][m], dim=-1), dim=-1)
-        per_token_avg_act = torch.mean(torch.concat(data['unit_tokens'][m], dim=-1), dim=-1)
-        excitant_ratio = (per_token_max_act / torch.sqrt(data['tokens-count'][m]))
+        f.write('\t'.join(['token', 'count', 'freq', 'q99_act', 'max_act', 'excitant_ratio']) + '\n')
+        per_token_max_act = torch.max(torch.concat(data['unit_tokens'][m], dim=-1), dim=-1).values
+        per_token_q99_act = torch.quantile(torch.concat(data['unit_tokens'][m], dim=-1).float(), q=0.99, dim=-1)
+        excitant_ratio = (torch.log(per_token_max_act) / torch.log(data['tokens-count'][m]))
         excitant_ratio = torch.where(data['tokens-count'][m]==0, torch.zeros_like(excitant_ratio), excitant_ratio)
-        for i, tkn in enumerate(data['tokens-count'][m]):
-            decoded = tokenizer.decode(tkn)
-            line = '/t'.join([
+        freq = data['tokens-count'][m] / data['tokens-count'][m].sum() 
+        for i, cpt in enumerate(tqdm(data['tokens-count'][m], desc=f'Tokens stats {m}')):
+            if args.decode_tokens:
+                decoded = tokenizer.decode(i)
+                for t,r in REPLACE.items():
+                    decoded = decoded.replace(t, r)
+            else:
+                decoded = str(i)
+            line = '\t'.join([
                 decoded,\
-                str(data['tokens-count'][m][i].item()),\
-                str(per_token_avg_act[i].item()),\
+                str(cpt.item()),\
+                str(freq[i].item()),\
+                str(per_token_q99_act[i].item()),\
                 str(per_token_max_act[i].item()),\
                 str(excitant_ratio[i].item()),\
-                    ])
+                    ]) + '\n'
+            f.write(line)
+exit()
+for m in ['input', 'output']:
     # unit stats
     with open(OUTPUT_PATH+f'-{m}.tsv', 'w') as f:
         f.write('\t'.join(['Layer', 'Unit', 'avg_act_uni', 'avg_act_true','energy', 'q99', 'Entropy', 'Uniqueness', 'Tokens'])+'\n')
         for l, data_layer in enumerate(data['unit_tokens'][m]):
             # transpose to get [n-units, n-tokens]
-            data_layer = data_layer.t()
+            data_layer = data_layer.t().float()
             # sort tokens
             sorted, indices = torch.sort(data_layer, descending=True, dim=1)
             # compute the 99th quantile
@@ -88,11 +102,16 @@ for m in ['input', 'output']:
                     q99_words = [str(t) for t in idx_q99_tokens]
                 # limit the number of tokens per unit
                 q99_words = q99_words[:min(MAX_TOKENS, len(q99_words))]
+                # remove '\n' from tokens
+                if args.decode_tokens:
+                    for t,r in REPLACE.items():
+                        q99_words = [w.replace(t, r) for w in q99_words]
                 # write into the file
                 line = '\t'.join([f'Layer {l}', f'Unit {unit_idx}']\
                                   + [str(i) for i in unit_data]\
                                   + q99_words) + '\n'
                 f.write(line)
+                print(line)
 
 # todo
 # compute the frequency / max activation ratio
