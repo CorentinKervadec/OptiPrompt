@@ -54,33 +54,14 @@ if args.extract_gradient:
     mode = 'minimal'
     fc1_data = import_fc1(datapath, files, mode=[mode])
 
-<<<<<<< HEAD
-"""
-Define a hook that save the fc1 with its gradient
-"""
-
-layers = model.model.model.decoder.layers
-temp_fc1 = {layer: torch.empty(0) for layer in layers} # temporary variable used to store the result of the hook
-def save_fc1_hook(layer) -> Callable:
-    def fn(_, input, output):
-        # input is what is fed to the layer
-        output.retain_grad() # force pytorch to store the gradient of this non-parameters tensor
-        temp_fc1[layer] = output
-    return fn
-=======
     # if you want to filter the templates
     fc1_data = filter_templates(fc1_data, min_template_accuracy=10, only_best_template=False)[mode]
     df_templates = fc1_data[['type', 'template', 'relation']].drop_duplicates()
->>>>>>> bd8f529b6cbf74713aedbc431bdc363b3f30b48e
 
     """
     Define a hook that save the fc1 with its gradient
     """
-    # function to extract grad
-    def set_grad(var):
-        def hook(grad):
-            var.grad = grad
-        return hook
+
     layers = model.model.model.decoder.layers
     temp_fc1 = {layer: torch.empty(0) for layer in layers} # temporary variable used to store the result of the hook
     def save_fc1_hook(layer) -> Callable:
