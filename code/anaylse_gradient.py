@@ -51,11 +51,7 @@ df_templates = fc1_data[['type', 'template', 'relation']].drop_duplicates()
 """
 Define a hook that save the fc1 with its gradient
 """
-# function to extract grad
-def set_grad(var):
-    def hook(grad):
-        var.grad = grad
-    return hook
+
 layers = model.model.model.decoder.layers
 temp_fc1 = {layer: torch.empty(0) for layer in layers} # temporary variable used to store the result of the hook
 def save_fc1_hook(layer) -> Callable:
