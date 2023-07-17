@@ -15,10 +15,10 @@ parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help=
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 parser.add_argument('--seed', type=int, default=-1)
-parser.add_argument('--n_samples', type=int, default=100000)
+parser.add_argument('--n_samples', type=int, default=10)#100000)
 parser.add_argument('--window_size', type=int, default=15)
 parser.add_argument('--window_stride', type=int, default=15)
-parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
+parser.add_argument('--device', type=str, default='cpu', help='Which computation device: cuda or mps')
 parser.add_argument('--output_dir', type=str, default='./unit-token-analyze', help='the output directory to store prediction results')
 parser.add_argument('--compute_global_units', default=False, help='whether to compute global units stats')
 parser.add_argument('--compute_token_units_input', default=True, help='whether to compute tokens units stats')
@@ -54,15 +54,15 @@ def update_token_unit(unit_tokens, fc1_act, layer, unique_id, token_ids, tokens_
     # compute the unit-token activations for the batch, on the device
     batch_unit_token_cum = torch.matmul(index_mask.to(device), fc1_act[layer].to(device))
     # update the cumuluative average
-    unit_tokens[layer][unique_id] = batch_unit_token_cum.to(save_device)
-    
-    # cumulative_average(
-    #     new_item    = batch_unit_token_cum,
-    #     new_count   = tokens_count[unique_id].unsqueeze(-1),
-    #     old_count   = old_token_count[unique_id].unsqueeze(-1),
-    #     old_average = unit_tokens[l][unique_id.to(save_device)],
-    #     device      = device,
-    # ).to(save_device)
+    # unit_tokens[layer][unique_id] = batch_unit_token_cum.to(save_device)
+    unit_tokens[layer][unique_id] = cumulative_average(
+        new_item    = batch_unit_token_cum,
+        new_count   = tokens_count[unique_id].unsqueeze(-1),
+        old_count   = old_token_count[unique_id].unsqueeze(-1),
+        old_average = unit_tokens[layer][unique_id.to(save_device)],
+        device      = device,
+    ).to(save_device)
+
     return unit_tokens
 
 if __name__ == "__main__":
