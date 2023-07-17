@@ -6,9 +6,9 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 import argparse
 
-PICKLE_NAME = '../../unit_token_wiki_100000/unit-token-wiki-s100000-concat69.pickle'
+PICKLE_NAME = '../../unit_token_wiki_100000/1.3b-unit-token-wiki-s100000-concat40.pickle'
 MAX_TOKENS = 500
-OUTPUT_PATH = '../../unit_token_wiki_100000/unit-token-wiki-s100000-concat69_idonly'
+OUTPUT_PATH = '../../unit_token_wiki_100000/1.3b-unit-token-wiki-s100000-concat40_idonly'
 REPLACE = {'\n':'__NEWLINE__',
            '\t':'__TAB__',
            '\s':'__SPACE__',
@@ -101,7 +101,7 @@ for m in ['input', 'output']:
                 if args.decode_tokens:
                     q99_words = [tokenizer.decode(t) for t in idx_q99_tokens]
                 else:
-                    q99_words = [str(t) for t in idx_q99_tokens]
+                    q99_words = [str(t.item()) for t in idx_q99_tokens]
                 # limit the number of tokens per unit
                 q99_words = q99_words[:min(MAX_TOKENS, len(q99_words))]
                 # remove '\n' from tokens
@@ -113,7 +113,7 @@ for m in ['input', 'output']:
                                   + [str(i) for i in unit_data]\
                                   + q99_words) + '\n'
                 f.write(line)
-                print(line)
+                # print(line)
 
 # todo
 # compute the frequency / max activation ratio
