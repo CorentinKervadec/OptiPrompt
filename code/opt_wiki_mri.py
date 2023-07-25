@@ -15,7 +15,7 @@ parser.add_argument('--model_name', type=str, default='facebook/opt-350m', help=
 parser.add_argument('--batch_size', type=int, default=256)
 parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
 parser.add_argument('--seed', type=int, default=-1)
-parser.add_argument('--n_samples', type=int, default=10)#100000)
+parser.add_argument('--n_samples', type=int, default=100000)
 parser.add_argument('--window_size', type=int, default=15)
 parser.add_argument('--window_stride', type=int, default=15)
 parser.add_argument('--device', type=str, default='cpu', help='Which computation device: cuda or mps')
@@ -44,7 +44,18 @@ def cumulative_average(new_item, new_count, old_count, old_average, device='cpu'
     new_count = new_count.to(device)
     old_count = old_count.to(device)
     old_average = old_average.to(device)
-    return (new_item + (old_count) * old_average) / (new_count)
+    # to float32
+    new_item = new_item.float()
+    new_count = new_count.float()
+    old_count = old_count.float()
+    old_average = old_average.float()
+    cum_avg_float32 = (new_item + (old_count) * old_average) / (new_count)
+    cum_avg_half = cum_avg_float32.half()
+    # print("new item: ", new_item.isnan().any())
+    # print("new count: ", new_count.isnan().any())
+    # print("old_count: ", old_count.isnan().any())
+    # print("old average: ", old_average.isnan().any())
+    return cum_avg_half
 
 def update_token_unit(unit_tokens, fc1_act, layer, unique_id, token_ids, tokens_count, old_token_count, device):
     save_device = unit_tokens[layer].device
@@ -55,6 +66,15 @@ def update_token_unit(unit_tokens, fc1_act, layer, unique_id, token_ids, tokens_
     batch_unit_token_cum = torch.matmul(index_mask.to(device), fc1_act[layer].to(device))
     # update the cumuluative average
     # unit_tokens[layer][unique_id] = batch_unit_token_cum.to(save_device)
+    # nan check
+    # try:
+    #     assert not batch_unit_token_cum.isnan().any()
+    # except AssertionError:
+    #     print("Nan found in batch_unit_token_cum")
+    #     print("Shape: ", batch_unit_token_cum.shape)
+    #     input('pause')
+    #     # print(batch_unit_token_cum)
+
     unit_tokens[layer][unique_id] = cumulative_average(
         new_item    = batch_unit_token_cum,
         new_count   = tokens_count[unique_id].unsqueeze(-1),
@@ -62,6 +82,15 @@ def update_token_unit(unit_tokens, fc1_act, layer, unique_id, token_ids, tokens_
         old_average = unit_tokens[layer][unique_id.to(save_device)],
         device      = device,
     ).to(save_device)
+
+    # try:
+    #     assert not unit_tokens[layer][unique_id.to(save_device)].isnan().any()
+    # except AssertionError:
+    #     print("Nan found in unit_tokens")
+    #     print("new_count: ", tokens_count[unique_id].unsqueeze(-1).min())
+    #     print("Shape: ", unit_tokens[layer][unique_id.to(save_device)].shape)
+    #     # print(unit_tokens[layer][unique_id.to(save_device)])
+    #     input('pause')
 
     return unit_tokens
 
