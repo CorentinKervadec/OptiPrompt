@@ -19,25 +19,33 @@ def get_type(prompt):
     Return the prompt type given the prompt name
     """
     if 'paraphrase' in prompt:
-        return 'paraphrase'
+        return 'Human'
     elif 'autoprompt-filter' in prompt:
         return 'autoprompt-filter'
     elif 'autoprompt-no-filter' in prompt:
-        return 'autoprompt-no-filter'
+        return 'M-disc'
     elif 'optiprompt' in prompt:
-        return 'optiprompt'
+        return 'M-cont'
 
 def get_type_2(type_A, type_B):
     if type_A==type_B:
         type_str = type_A
     else:
-        if (type_A=='paraphrase' and type_B=='optiprompt') or (type_B=='paraphrase' and type_A=='optiprompt'):
-            type_str = f'mixte_paraphrase_optiprompt'
-        elif (type_A=='paraphrase' and type_B=='autoprompt-no-filter') or (type_B=='paraphrase' and type_A=='autoprompt-no-filter'):
-            type_str = f'mixte_paraphrase_autoprompt-no-filter'
-        elif (type_A=='optiprompt' and type_B=='autoprompt-no-filter') or (type_B=='optiprompt' and type_A=='autoprompt-no-filter'):
-            type_str = f'mixte_optiprompt_autoprompt-no-filter'
+        if (type_A=='Human' and type_B=='M-cont') or (type_B=='Human' and type_A=='M-cont'):
+            type_str = f'mixte_Human_M-cont'
+        elif (type_A=='Human' and type_B=='M-disc') or (type_B=='Human' and type_A=='M-disc'):
+            type_str = f'mixte_Human_M-disc'
+        elif (type_A=='M-cont' and type_B=='M-disc') or (type_B=='M-cont' and type_A=='M-disc'):
+            type_str = f'mixte_M-cont_M-disc'
     return type_str
+
+def cos_sim(A,B):
+    A_dot_B = np.dot(A,B)
+    A_mag = np.sqrt(np.sum(np.square(A)))
+    B_mag = np.sqrt(np.sum(np.square(B)))
+    dist = (A_dot_B / (A_mag * B_mag))
+    return dist
+
 
 # fc1 functions
 
@@ -128,11 +136,12 @@ def dataframe_fc1(fc1_data, mode):
     elif mode == 'sensibility':
         df = pd.DataFrame(
             data=fc1_data,
-            columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'ent', 'type', 'l_nrg_att'])
+            columns=['relation', 'prompt', 'template', 'layer', 'sensibility', 'micro', 'ppl', 'ent', 'type', 'l_nrg_att', 'nb_facts'])
         df['sensibility'] = df['sensibility'].apply(
                 lambda l: [x.item() for x in l]
             )
         df['np_sensibility'] = df['sensibility'].apply(lambda a: np.array(a))
+        df['normed_sensibility'] = df['np_sensibility'] / df['nb_facts'].apply(lambda a: np.array(a))
         df['micro'] = df['micro'].apply(
                 lambda x: x*100
             )
