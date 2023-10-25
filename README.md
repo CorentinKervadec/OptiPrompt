@@ -1,6 +1,31 @@
-I'm using the code from Optiprompt has it is more convenient when using optiprompt and autoprompt prompts, but most of the code we are using is new.
+# Installation
 
-(To go on the eval branch do: 'git checkout eval'
+## Docker container
+
+Build the image using the dockerfile in docker/Dockerfile.
+
+## Without docker
+
+If you want to run the code without docker, you can find all the dependancise in the dockerfile in docker/Dockerfile.
+
+# Extract knowledge neuron activations (fc1 actications)
+
+Launch the analyze_prompt.py script in /code. It will feed the LM with the templates found in [PROMPT FILE] and filled with the LAMA triplet.
+During the foward pass, various stats are gathered, including the fc1 activation (i.e. the knowledge neurons' activations), but also others such as micro accuracy or perplexity.
+It will output a 'fc1_data_*.pickle' file containing the extracted activations and the other stats.
+
+> python3 code/analyze_prompts.py \
+    --device cuda \
+    --output_predictions False \
+    --output_dir [WHERE TO OUTPUT THE ACTIVATION FILE] \
+    --test_data_dir $DATA \
+    --model_name [HUGGING FACE MODEL NAME] \
+    --prompt_files [PROMPT FILE] \
+    --eval_batch_size $BS \
+    --common_vocab_filename $VOCAB \
+    --relation $REL
+
+# Qualitative analysis
 
 In particular, we'll use this file:
 OptiPrompt/code/exp_units.py
