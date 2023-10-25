@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument('--fp16', action='store_true', help='use half precision')
 
     # language model
-    parser.add_argument('--model_name', type=str, default=f'facebook/opt-350m', help='the huggingface model name')
+    parser.add_argument('--model_name', type=str, default=f'facebook/opt-1.3b', help='the huggingface model name')
 
     # parameters
     parser.add_argument('--n_units', type=int, default=500, help='How many units to be extracted, -1 to take all of them')
@@ -105,18 +105,18 @@ def get_typical(high_sensibility_units_per_type, low_sensibility_units_per_type,
         this_prompt_high_unit = high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]
         # othr_prompts_low_unit = low_sensibility_units_per_type[low_sensibility_units_per_type['type']!=t]
         # all units which have a low sensibility with the others prompts
-        inter_othr_prompts_low_unit = [all([low_sensibility_units_per_type[low_sensibility_units_per_type['type']==t_bis]['np_sensibility'].item()[i]\
+        inter_othr_prompts_low_unit = [all([low_sensibility_units_per_type[low_sensibility_units_per_type['type']==t_bis]['normed_sensibility'].item()[i]\
                                         for t_bis in prompt_types if t_bis != t])\
                                             for i in range(n_layers*n_units_layer)]
         typical_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
-                if all([this_prompt_high_unit['np_sensibility'].item()[i], inter_othr_prompts_low_unit[i]])]
+                if all([this_prompt_high_unit['normed_sensibility'].item()[i], inter_othr_prompts_low_unit[i]])]
         # typical_units[t] = random.sample(typical_units[t], min(n_units,len(typical_units[t])))
     return typical_units
 
 def get_shared(high_sensibility_units_per_type, n_units_layer, n_layers, prompt_types):
     # keep units belonging to the top percentile for all prompt types
     shared_units = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
-            if all([high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]['np_sensibility'].item()[i]\
+            if all([high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]['normed_sensibility'].item()[i]\
                 for t in prompt_types])]
     # shared_units = random.sample(shared_units, min(n_units, len(shared_units)))
     return shared_units
@@ -127,7 +127,7 @@ def get_high(high_sensibility_units_per_type, n_units_layer, n_layers, prompt_ty
     for t in prompt_types:
         this_prompt_high_unit = high_sensibility_units_per_type[high_sensibility_units_per_type['type']==t]
         high_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
-                if this_prompt_high_unit['np_sensibility'].item()[i]]
+                if this_prompt_high_unit['normed_sensibility'].item()[i]]
         # high_units[t] = random.sample(high_units[t], min(n_units,len(high_units[t])))
     return high_units
 
@@ -137,7 +137,7 @@ def get_low(low_sensibility_units_per_type, n_units_layer, n_layers, prompt_type
     for t in prompt_types:
         this_prompt_high_unit = low_sensibility_units_per_type[low_sensibility_units_per_type['type']==t]
         low_units[t] = [(int(i/n_units_layer), i%n_units_layer) for i in range(n_layers*n_units_layer)\
-                if this_prompt_high_unit['np_sensibility'].item()[i]]
+                if this_prompt_high_unit['normed_sensibility'].item()[i]]
         # low_units[t] = random.sample(low_units[t], min(n_units,len(low_units[t])))
     return low_units
 
@@ -145,20 +145,76 @@ def get_low(low_sensibility_units_per_type, n_units_layer, n_layers, prompt_type
 def plot_sensibility_dist(data, relations, args):
     import pandas as pd
     import seaborn as sns
+    import matplotlib.pyplot as plt
     for r in relations:
         if r =='all':
             df = data['sensibility']
         else:
             df = data['sensibility'][data['sensibility']['relation']==r]
-        # average over templates
-        avg_sensibility_per_type = df[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean()
+
+        # bootstrap overlap mean (with replacement):
+        S_sample=len(df['template'].unique()) # size of the sample = nb of templates
+        N_sample=100 # number of sampling (initialised with the sample size)
+        lowerbound_cache = None
+        ee = 1e-1 # convergence threshold
+        e_conv = 1
+        while e_conv > ee:
+            bootstrap_list = []
+            for n in tqdm(range(N_sample), desc=f'Number of samples: {N_sample} | Convergence error: {e_conv}'):
+                # sample S_sample templates
+                sampled_templates = random.choices(df['template'].unique().tolist(), k=S_sample)
+                df_sample = df[df['template'].isin(sampled_templates)]
+                avg_sensibility_per_type = df_sample[['layer', 'type', 'normed_sensibility']].groupby(['layer', 'type']).mean()
+                # trick to unfold the array
+                dic = avg_sensibility_per_type.reset_index().to_dict()
+                n = len(dic['layer'])
+                data_dic = flatten([[{'layer':dic['layer'][i], 'type':dic['type'][i], 'val':dic['normed_sensibility'][i][j]} for j in range(len(dic['normed_sensibility'][i]))] for i in range(n)])
+                # data = flatten([[{'type':t, 'unit': i, 'val':x[i]} for i in range(len(x))] for t,x in avg_sensibility_per_type_flat.to_dict().items()])
+                df_bootstrap = pd.DataFrame(data_dic)
+                labels = list(df_bootstrap['type'].unique())
+                high_threshold = np.percentile(df_bootstrap['val'].values, 80)
+                df_bootstrap['# units in top 20% activation'] = df_bootstrap['val'] >= high_threshold
+                df_bootstrap = df_bootstrap.groupby(['layer', 'type']).sum().reset_index()
+                bootstrap_list.append(df_bootstrap)
+            dcat = pd.concat(bootstrap_list)
+        
+            if lowerbound_cache is not None:
+                e_conv = abs(lowerbound_cache - dcat.groupby(['type','layer']).quantile(0.025)).max().max()
+            lowerbound_cache = dcat.groupby(['type','layer']).quantile(0.025)
+
+            # Increase number of samples
+            N_sample = 2*N_sample
+
+        dcat.groupby(['type','layer']).mean()
+        dcat.groupby(['type','layer']).quantile(0.025)
+        dcat.groupby(['type','layer']).quantile(0.975)
+
+        enable_layers = ['l00', 'l04', 'l08', 'l12', 'l16', 'l20', 'l23']
+        g = sns.barplot(data=dcat[dcat['layer'].isin(enable_layers)], x='# units in top 20% activation', y="layer", hue='type', errorbar=("pi", 95))
+
+        # same plot with var across templates
+        sensibility_per_template = df[['layer', 'type', 'normed_sensibility', 'template']]
         # trick to unfold the array
-        dic = avg_sensibility_per_type.reset_index().to_dict()
+        dic = sensibility_per_template.reset_index().to_dict()
         n = len(dic['layer'])
-        data_dic = flatten([[{'layer':dic['layer'][i], 'type':dic['type'][i], 'val':dic['np_sensibility'][i][j]} for j in range(len(dic['np_sensibility'][i]))] for i in range(n)])
+        data_dic = flatten([[{'layer':dic['layer'][i], 'type':dic['type'][i], 'template':dic['template'][i], 'val':dic['normed_sensibility'][i][j]} for j in range(len(dic['normed_sensibility'][i]))] for i in range(n)])
         # data = flatten([[{'type':t, 'unit': i, 'val':x[i]} for i in range(len(x))] for t,x in avg_sensibility_per_type_flat.to_dict().items()])
         df_plot = pd.DataFrame(data_dic)
         labels = list(df_plot['type'].unique())
+
+        enable_layers = ['l00', 'l04', 'l08', 'l12', 'l16', 'l20', 'l23']
+        # enable_layers = ['l00', 'l06', 'l12', 'l18', 'l24']
+        
+        high_threshold = np.percentile(df_plot['val'].values, 80)
+
+        df_plot['# units in top 20% activation'] = df_plot['val'] >= high_threshold
+        df_plot_sum = df_plot.groupby(['layer', 'type', 'template']).sum().reset_index()
+        # sns.countplot(data=df_plot[df_plot['layer'].isin(enable_layers)], y="layer", hue='type')
+        g = sns.barplot(data=df_plot_sum[df_plot_sum['layer'].isin(enable_layers)], x='# units in top 20% activation', y="layer", hue='type')
+
+
+        # plt.legend(title='Prompt type', loc='bottom right', labels=['M-disc', 'M-cont', 'Human'])
+
         g = sns.FacetGrid(df_plot, col='layer', height=4, col_wrap=4)
         g.map_dataframe(sns.histplot, x='val', hue='type', hue_order=labels, log_scale=(False,True),  element="step", legend='full', common_bins=False, bins=100)
         for ax in g.axes.ravel():
@@ -188,8 +244,8 @@ def unit_extraction(df, threshold_mode, percentile_high, percentile_low, shared=
     prompt_types = df['type'].unique()
 
     # Compute avg sensibility per prompt type
-    avg_sensibility_per_type = df[['layer', 'type', 'np_sensibility']].groupby(['layer', 'type']).mean()
-    avg_sensibility_per_type_flat = avg_sensibility_per_type.groupby('type')['np_sensibility'].apply(list).apply(lambda x: np.concatenate(x))
+    avg_sensibility_per_type = df[['layer', 'type', 'normed_sensibility']].groupby(['layer', 'type']).mean()
+    avg_sensibility_per_type_flat = avg_sensibility_per_type.groupby('type')['normed_sensibility'].apply(list).apply(lambda x: np.concatenate(x))
     
     # filter unit to only keep those with a sensibility in the top p percentile (per type)
 
@@ -351,7 +407,10 @@ def get_exp_setup(args, mode, prompt_type, relation, data, str_high_threshold, s
     """
     this_date = datetime.utcnow().strftime('%Y%m%d-%H:%M:%S')
     if relation == 'all':
-        this_data = data[data['type']==prompt_type]
+        if prompt_type == '':
+            this_data = data
+        else:
+            this_data = data[data['type']==prompt_type]
     else:
         this_data = data[data['type']==prompt_type][data['relation']==relation]
     n_templates = len(this_data['template'].unique())
@@ -431,7 +490,7 @@ def unit_experiment(model, data, relations, args, modes=['shared', 'typical', 'h
         else:
             df = data[data['relation']==rel]
 
-        # count_sensibility = '\n'.join([f'Layer '+'l{:02d}'.format(l)+'\t' + '\t'.join([f'{t}: ' + str(avg_sensibility_per_type.to_dict()['np_sensibility'][('l{:02d}'.format(l),t)].sum()) for t in df['type'].unique()]) for l in range(24)])
+        # count_sensibility = '\n'.join([f'Layer '+'l{:02d}'.format(l)+'\t' + '\t'.join([f'{t}: ' + str(avg_sensibility_per_type.to_dict()['normed_sensibility'][('l{:02d}'.format(l),t)].sum()) for t in df['type'].unique()]) for l in range(24)])
         
         # print(f"[UNITS] Sensibility count for {rel}:")
         # print(count_sensibility)
@@ -545,6 +604,8 @@ if __name__ == "__main__":
     if args.fast_for_debug:
         selected_relations = ['P1001','P176',]
 
+    selected_relations = ['all', ]
+
     # which units to extract:
     modes = []
     if args.shared_units:
@@ -556,7 +617,7 @@ if __name__ == "__main__":
     if args.low_units:
         modes.append('low')
 
-    # plot_sensibility_dist(data, selected_relations, args)
+    plot_sensibility_dist(data, selected_relations, args)
 
     # launch unit experiment
-    unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
+    # unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
