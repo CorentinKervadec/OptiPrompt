@@ -10,11 +10,11 @@ If you want to run the code without docker, you can find all the dependancise in
 
 # Extract knowledge neuron activations (fc1 actications)
 
-Launch the analyze_prompt.py script in /code. It will feed the LM with the templates found in [PROMPT FILE] and filled with the LAMA triplet.
-During the foward pass, various stats are gathered, including the fc1 activation (i.e. the knowledge neurons' activations), but also others such as micro accuracy or perplexity.
-It will output a 'fc1_data_*.pickle' file containing the extracted activations and the other stats.
+* Launch the analyze_prompt.py script in /code. It will feed the LM with the templates found in [PROMPT FILE] and filled with the LAMA triplet.
+* During the foward pass, various stats are gathered, including the fc1 activation (i.e. the knowledge neurons' activations), but also others such as micro accuracy or perplexity.
+* It will output a 'fc1_data_*.pickle' file containing the extracted activations and the other stats.
 
-> python3 code/analyze_prompts.py \
+> python code/analyze_prompts.py \
     --device cuda \
     --output_predictions False \
     --output_dir [WHERE TO OUTPUT THE ACTIVATION FILE] \
@@ -24,6 +24,30 @@ It will output a 'fc1_data_*.pickle' file containing the extracted activations a
     --eval_batch_size $BS \
     --common_vocab_filename $VOCAB \
     --relation $REL
+
+# Quantitative analysis
+
+* Once you have generated the 'fc1_data_*.pickle' files, you can use the following script to analyse it.
+* You just have to specify the arguments which are direclty hard-coded in the script:
+
+> MODEL='opt-350m'
+> 
+> EXP_NAME=f'{MODEL}'
+> 
+> SENSIBILITY_TRESHOLD=0
+> 
+> TRIGGER_TRESHOLD_FREQ_RATE=0.2
+> 
+> LOAD_FC1=[LIST OF fc1_data_*.pickle YOU WANT TO ANALYSE]
+
+* Make sure the fc1_data_*.pickle matches with the model you are using.
+* SENSIBILITY_TRESHOLD and TRIGGER_TRESHOLD_FREQ_RATE: you can use these default values
+* Ideally, LOAD_FC1 contains fc1_data_*.pickle which have been extracted with different prompt types (e.g. Optiprompt, Autoprompt and Human)
+
+Then, launch:
+
+> python quantitative_analysis.py
+
 
 # Qualitative analysis
 
