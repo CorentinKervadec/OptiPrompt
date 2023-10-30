@@ -48,6 +48,9 @@ Then, launch:
 
 > python quantitative_analysis.py
 
+* In the script, the data is formatted as a Pandas Dataframe see [here](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) if you are not familiar with it.
+
+* 
 
 # Qualitative analysis
 
