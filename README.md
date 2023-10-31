@@ -1,3 +1,6 @@
+**Code for EMNLP Findings 2023 paper "Unnatural language processing: How do language models handle machine-generated prompts?"**
+*Corentin Kervadec, Francesca Franzon and Marco Baroni.*  [arxiv link](https://arxiv.org/abs/2310.15829)
+
 # Installation
 
 ## Docker container
@@ -48,15 +51,16 @@ If you want to run the code without docker, you can find all the dependancise in
 
 * Make sure the fc1_data_*.pickle matches with the model you are using.
 * SENSIBILITY_TRESHOLD and TRIGGER_TRESHOLD_FREQ_RATE: you can use these default values
-* Ideally, LOAD_FC1 contains fc1_data_*.pickle which have been extracted with different prompt types (e.g. Optiprompt, Autoprompt and Human)
+* Ideally, LOAD_FC1 is a list of fc1_data_*.pickle which have been extracted with different prompt types (e.g. Optiprompt, Autoprompt and Human)
 
 Then, launch:
 
 > python quantitative_analysis.py
 
 * In the script, the data is formatted as a Pandas Dataframe see [here](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) if you are not familiar with it.
+* This script can be used to obtain the results found in Table 1, Table 2, Figure 1 and Figure 2 of the paper.
 
-* 
+* Look at the code, (almost) everything is explained.
 
 # Qualitative analysis
 
