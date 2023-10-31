@@ -131,13 +131,6 @@ def load_file(filename):
             data.append(json.loads(line))
     return data
 
-def load_pred(prompt, relation):
-    prompt = prompt.split('.')[0]
-    samples = load_file(os.path.join('./data/eval/', prompt, 'facebook_opt-350m/%s.jsonl'%(relation)))
-    # make sure that samples are in the same order
-    pred = [s["topk"][0]["token"] for s in samples]
-    return pred
-
 def compute_agreement(pred_A, pred_B):
     score = float(sum([a==b for a,b in zip(pred_A, pred_B)]))/float(len(pred_A))
     return score
@@ -193,6 +186,7 @@ if __name__ == "__main__":
 
     """
     Compute accuracy + PPL + Consistency
+    Table 1 in the paper.
     """
     df_scores = df_sensibility[['prompt','relation','micro', 'type', 'ppl', 'ent', 'l_nrg_att']].groupby(['prompt', 'relation', 'type']).mean().reset_index()
     df_scores = df_scores.set_index('prompt').drop_duplicates()
@@ -203,10 +197,16 @@ if __name__ == "__main__":
     print("Consistency: ", consistency)
     print("Max: ", max_micro)
 
+    """
+    Uncomment the following lines to get the CI of the metrics above
+    """
     #df_sensibility[['prompt','relation','micro', 'type', 'ppl', 'ent', 'l_nrg_att']].groupby(['type']).quantile(0.025).reset_index()
     #df_sensibility[['prompt','relation','micro', 'type', 'ppl', 'ent', 'l_nrg_att']].groupby(['type']).quantile(0.975).reset_index()
 
 
+    """
+    Measure D_in, i.e. the distance between templates in the LM's input space
+    """
     # measure distance in OPT input embedding between all pairs of templates
     input_rep = []
     def save_input_hook() -> Callable:
@@ -233,18 +233,61 @@ if __name__ == "__main__":
     del input_rep
     df_overlap['d_in'] = [cos_sim(input_rep_dic[tA], input_rep_dic[tB]) for tA, tB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
+    """
+    MeasureD_out, i.e. the agreement between templates
+    """
     # measure difference in prediction 
     df_overlap['d_out'] = [compute_agreement(all_preds[pA], all_preds[pB]) for pA, pB in zip(df_overlap['template_A'], df_overlap['template_B'])]
 
+
+    """
+    Print mean+std of Overlap, D_in and D_out
+    also print it for specific layers: l00, l12, l20
+    """
     print('[type] Metrics avg: ', df_overlap.groupby('type').mean())
     print('[type] Metrics std: ', df_overlap.groupby('type').std())
     for layer in ['l03', 'l12', 'l20']:
         print(f'[{layer}] Metrics avg: ', df_overlap[df_overlap['layer']==layer].groupby('type').mean())
         print(f'[{layer}] All Metrics avg: ', df_overlap[df_overlap['layer']==layer].mean())
 
-    # ---------------------
-    #   CORRELATION
-    # ---------------------
+    """
+    Uncertainty estimation based on bootstrapping.
+    This provide a better estimation of the overlap, d_in and d_out as it takes into
+    account the uncertainty of the measure.
+    Figure 1 and 2 in the paper
+    """
+    # bootstrap overlap mean (with replacement):
+    S_sample=len(df_sensibility['template'].unique().tolist()) # size of the sample = nb of templates
+    N_sample=100 # number of sampling (initialised with the sample size)
+    lowerbound_cache = None
+    ee = 1e-3 # convergence threshold
+    e_conv = 1
+    while e_conv > ee:
+        bootstrap_list = []
+        for n in tqdm(range(N_sample), desc=f'Number of samples: {N_sample} | Convergence error: {e_conv}'):
+            # sample S_sample templates
+            sampled_templates = random.choices(df_sensibility['template'].unique().tolist(), k=S_sample)
+            df_sample = df_overlap[df_overlap['template_A'].isin(sampled_templates)&df_overlap['template_B'].isin(sampled_templates)]
+            bootstrap_list.append(df_sample.groupby('type').mean(numeric_only=True))
+
+        dcat = pd.concat(bootstrap_list)
+    
+        if lowerbound_cache is not None:
+            e_conv = abs(lowerbound_cache - dcat.groupby('type').quantile(0.025)).max().max()
+        lowerbound_cache = dcat.groupby('type').quantile(0.025)
+
+        # Increase number of samples
+        N_sample = 2*N_sample
+
+    # print bootstrap result
+    print(dcat.groupby('type').mean())
+    print(dcat.groupby('type').quantile(0.025))
+    print(dcat.groupby('type').quantile(0.975))
+
+
+    """
+    Measure correlation between metrics.
+    """
 
     def calculate_pvalues(df):
         dfcols = pd.DataFrame(columns=df.columns)
@@ -255,23 +298,24 @@ if __name__ == "__main__":
                 pvalues[r][c] = round(pearsonr(tmp[r], tmp[c])[1], 4)
         return pvalues
 
+    # the metrics you want to consider
     metrics_pair = ['overlap', 'd_in', 'd_out', 'sim_nrg_att']
     metrics_solo = ['micro', 'ppl', 'ent', 'l_nrg_att']
+    # the variables you want to control
     control_pair = ['layer', 'relation',]
     control_solo = ['relation',]
-
+    # metrics computed on pairs of templates
     pair ={
         'df': df_overlap,
         'metrics':metrics_pair,
         'control':control_pair,
     }
+    # metrics computed on single templates
     solo ={
         'df': df_sensibility,
         'metrics':metrics_solo,
         'control':control_solo,
     }
-    
-
     def get_corr(df, metrics, t, ctrl, ctrl_i):
         corr = df[metrics].corr(method='pearson').unstack().reset_index()
         corr = corr.rename(columns={0:'pearson corr.'})
@@ -284,7 +328,7 @@ if __name__ == "__main__":
         corr['control'] = [ctrl,]*len(corr)
         corr['type'] = [t,]*len(corr)
         return corr
-
+    # measure correlations
     corr_data = {}
     for exp_name, corr_conf in {'pair':pair, 'solo':solo}.items():
         control = corr_conf['control']
@@ -312,41 +356,18 @@ if __name__ == "__main__":
         ctrl_corr.append(corr)
         corr_data[exp_name] = pd.concat(ctrl_corr)
 
+    # print correlations
     for corr_conf, corr_datum in corr_data.items():
         for prompt_type in corr_datum['type'].unique():
-            
             corr_type = corr_datum[corr_datum['type']==prompt_type]
-
             print(f'[{corr_conf}, {prompt_type}] P value:')
             print(corr_type[corr_type['label']=='all'])
 
-    # bootstrap overlap mean (with replacement):
-    S_sample=len(df_sensibility['template'].unique().tolist()) # size of the sample = nb of templates
-    N_sample=100 # number of sampling (initialised with the sample size)
-    lowerbound_cache = None
-    ee = 1e-3 # convergence threshold
-    e_conv = 1
-    while e_conv > ee:
-        bootstrap_list = []
-        for n in tqdm(range(N_sample), desc=f'Number of samples: {N_sample} | Convergence error: {e_conv}'):
-            # sample S_sample templates
-            sampled_templates = random.choices(df_sensibility['template'].unique().tolist(), k=S_sample)
-            df_sample = df_overlap[df_overlap['template_A'].isin(sampled_templates)&df_overlap['template_B'].isin(sampled_templates)]
-            bootstrap_list.append(df_sample.groupby('type').mean(numeric_only=True))
-
-        dcat = pd.concat(bootstrap_list)
-    
-        if lowerbound_cache is not None:
-            e_conv = abs(lowerbound_cache - dcat.groupby('type').quantile(0.025)).max().max()
-        lowerbound_cache = dcat.groupby('type').quantile(0.025)
-
-        # Increase number of samples
-        N_sample = 2*N_sample
-
-    dcat.groupby('type').mean()
-    dcat.groupby('type').quantile(0.025)
-    dcat.groupby('type').quantile(0.975)
-
+    """
+    Use bootstrapping the quantify the uncertainty of the correlation measures
+    Only for overlap, d_in and d_out, without control.
+    Table 2 in the paper.
+    """
     # coorelation : bootstrap overlap mean (with replacement):
     S_sample=len(df_sensibility['template'].unique().tolist()) # size of the sample = nb of templates
     N_sample=100 # number of sampling (initialised with the sample size)
@@ -375,13 +396,18 @@ if __name__ == "__main__":
         # Increase number of samples
         N_sample = 2*N_sample
 
-
-
-
+    # print bootstrap result
+    print(dcat.groupby('type').mean())
+    print(dcat.groupby('type').quantile(0.025))
+    print(dcat.groupby('type').quantile(0.975))
 
     # ---------------------
     #   PLOTS
     # ---------------------
+
+    """
+    Various plots. May be deprecated.
+    """
 
     import seaborn as sns
 
