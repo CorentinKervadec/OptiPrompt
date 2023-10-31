@@ -25,6 +25,12 @@ If you want to run the code without docker, you can find all the dependancise in
     --common_vocab_filename $VOCAB \
     --relation $REL
 
+* $VOCAB can be set to 'none' if you want to use the whole vocabulary (recommended)
+* The prompt file has to be formatted as a json file, cf. this [exemple](https://drive.google.com/file/d/1yyTmAo2lgCTyhQ-xBUUrYtPp-LvcRFAU/view?usp=drive_link)
+* $DATA: Our version of LAMA can be dowloaded [here](https://drive.google.com/file/d/1TWYjf_QWo-zn8ryjNW1eeJOMq9nE5HZL/view?usp=drive_link)
+* In our study we used the [OPT family](https://huggingface.co/docs/transformers/model_doc/opt) of LMs. Using an other type of LM might require to modify the code.
+
+
 # Quantitative analysis
 
 * Once you have generated the 'fc1_data_*.pickle' files, you can use the following script to analyse it.
