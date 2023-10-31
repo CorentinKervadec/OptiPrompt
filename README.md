@@ -34,7 +34,7 @@ If you want to run the code without docker, you can find all the dependancise in
 * In our study we used the [OPT family](https://huggingface.co/docs/transformers/model_doc/opt) of LMs. Using an other type of LM might require to modify the code.
 
 
-# Quantitative analysis
+# Quantitative analysis (Table 1,2 and Figure 1,2)
 
 * Once you have generated the 'fc1_data_*.pickle' files, you can use the following script to analyse it.
 * You just have to specify the arguments which are direclty hard-coded in the script:
@@ -62,7 +62,7 @@ Then, launch:
 
 * Look at the code, (almost) everything is explained.
 
-# Qualitative analysis
+# Qualitative analysis (Table 3)
 
 In particular, we'll use this file:
 OptiPrompt/code/exp_units.py
