@@ -1,3 +1,6 @@
+**Code for EMNLP Findings 2023 paper "Unnatural language processing: How do language models handle machine-generated prompts?"**
+*Corentin Kervadec, Francesca Franzon and Marco Baroni.*  [arxiv link](https://arxiv.org/abs/2310.15829)
+
 # Installation
 
 ## Docker container
@@ -31,7 +34,7 @@ If you want to run the code without docker, you can find all the dependancise in
 * In our study we used the [OPT family](https://huggingface.co/docs/transformers/model_doc/opt) of LMs. Using an other type of LM might require to modify the code.
 
 
-# Quantitative analysis
+# Quantitative analysis (Table 1,2 and Figure 1,2)
 
 * Once you have generated the 'fc1_data_*.pickle' files, you can use the following script to analyse it.
 * You just have to specify the arguments which are direclty hard-coded in the script:
@@ -48,46 +51,54 @@ If you want to run the code without docker, you can find all the dependancise in
 
 * Make sure the fc1_data_*.pickle matches with the model you are using.
 * SENSIBILITY_TRESHOLD and TRIGGER_TRESHOLD_FREQ_RATE: you can use these default values
-* Ideally, LOAD_FC1 contains fc1_data_*.pickle which have been extracted with different prompt types (e.g. Optiprompt, Autoprompt and Human)
+* Ideally, LOAD_FC1 is a list of fc1_data_*.pickle which have been extracted with different prompt types (e.g. Optiprompt, Autoprompt and Human)
 
 Then, launch:
 
 > python quantitative_analysis.py
 
 * In the script, the data is formatted as a Pandas Dataframe see [here](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html) if you are not familiar with it.
+* This script can be used to obtain the results found in Table 1, Table 2, Figure 1 and Figure 2 of the paper.
 
-* 
+* Look at the code, (almost) everything is explained.
 
-# Qualitative analysis
+# Qualitative analysis: extracting prompt-typical units
 
-In particular, we'll use this file:
-OptiPrompt/code/exp_units.py
+* Use the following script code/exp_units.py
 
 Here is an example of how to use it:
-python3 exp_units.py --autoprompt --paraphrase --optiprompt --high_units --percentile_high 99 --n_units 100 --k_tokens 50 --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
+> python3 exp_units.py --autoprompt --paraphrase --optiprompt --high_units --percentile_high 99 --n_units 100 --k_tokens 50 --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
+
 In that case, it will launch the extraction of the 'high_units' (I'll tell you what it is later), for autoprompt paraphrase and optiprompt. It will extract 100 units per prompt type (the 100 units are randomly sampled from the set of high units), with 50 tokens associated to each unit. Here, the 'high_units" are defined as the units being activated more often than the 99 percentile (so they belong to the top 1%).
 
 You can find the details of the function parameters at the beginning of the exp_units.py file (starting at line 24). But here are the main arguments:
 
 Choose which prompt type you want to add in the experiment by adding/removing these options (if you want to extract shared or typical prompt, I recommend to only use two prompt types):
---optiprompt
---autoprompt
---paraphrase
+> --optiprompt
+> 
+> --autoprompt
+> 
+> --paraphrase
 
 Choose which units you want to extract:
---shared_units (units being highly activated for all prompt types)
---typical_units (units with high activation for the current type and low activation for the others)
---high_units (units with high activations)
---low_units (units with low activations)
+> --shared_units (units being highly activated for all prompt types)
+> 
+> --typical_units (units with high activation for the current type and low activation for the others)
+> 
+> --high_units (units with high activations)
+> 
+>--low_units (units with low activations)
 
 The selection of high and low units is controlled by these parameters:
---percentile_high 90
---percentile_low 10
+> --percentile_high 90
+> 
+> --percentile_low 10
 
 The selection of shared and typical units is controlled by these parameters:
---percentile_typical_max 80
---percentile_typical_min 20
+> --percentile_typical_max 80
+> 
+> --percentile_typical_min 20
 
 So here is an other example. If you want to extract the typical, shared and high units for autoprompt and paraphrases:
-python3 exp_units.py --autoprompt --paraphrase --shared_units --typical_units --high_units --percentile_high 99 --percentile_typical_max 80 --percentile_typical_min 20 --n_units 100 --k_tokens 50 --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
-I'll not detail here how to launch the code on the cluster, but if you need help, ask me. It is based on the same libraries as we used before in this project. So you may re-use the same conda env (or whatever env you are using). You can also try to launch it locally on cpu (I am not sure if the GPUs are very useful for this code).
+> python3 exp_units.py --autoprompt --paraphrase --shared_units --typical_units --high_units --percentile_high 99 --percentile_typical_max 80 --percentile_typical_min 20 --n_units 100 --k_tokens 50 --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
+
