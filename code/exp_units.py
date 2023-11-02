@@ -185,55 +185,56 @@ def plot_sensibility_dist(data, relations, args):
             # Increase number of samples
             N_sample = 2*N_sample
 
+        # data for Figure 3
         dcat.groupby(['type','layer']).mean()
         dcat.groupby(['type','layer']).quantile(0.025)
         dcat.groupby(['type','layer']).quantile(0.975)
 
-        enable_layers = ['l00', 'l04', 'l08', 'l12', 'l16', 'l20', 'l23']
-        g = sns.barplot(data=dcat[dcat['layer'].isin(enable_layers)], x='# units in top 20% activation', y="layer", hue='type', errorbar=("pi", 95))
+        # enable_layers = ['l00', 'l04', 'l08', 'l12', 'l16', 'l20', 'l23']
+        # g = sns.barplot(data=dcat[dcat['layer'].isin(enable_layers)], x='# units in top 20% activation', y="layer", hue='type', errorbar=("pi", 95))
 
-        # same plot with var across templates
-        sensibility_per_template = df[['layer', 'type', 'normed_sensibility', 'template']]
-        # trick to unfold the array
-        dic = sensibility_per_template.reset_index().to_dict()
-        n = len(dic['layer'])
-        data_dic = flatten([[{'layer':dic['layer'][i], 'type':dic['type'][i], 'template':dic['template'][i], 'val':dic['normed_sensibility'][i][j]} for j in range(len(dic['normed_sensibility'][i]))] for i in range(n)])
-        # data = flatten([[{'type':t, 'unit': i, 'val':x[i]} for i in range(len(x))] for t,x in avg_sensibility_per_type_flat.to_dict().items()])
-        df_plot = pd.DataFrame(data_dic)
-        labels = list(df_plot['type'].unique())
+        # # same plot with var across templates
+        # sensibility_per_template = df[['layer', 'type', 'normed_sensibility', 'template']]
+        # # trick to unfold the array
+        # dic = sensibility_per_template.reset_index().to_dict()
+        # n = len(dic['layer'])
+        # data_dic = flatten([[{'layer':dic['layer'][i], 'type':dic['type'][i], 'template':dic['template'][i], 'val':dic['normed_sensibility'][i][j]} for j in range(len(dic['normed_sensibility'][i]))] for i in range(n)])
+        # # data = flatten([[{'type':t, 'unit': i, 'val':x[i]} for i in range(len(x))] for t,x in avg_sensibility_per_type_flat.to_dict().items()])
+        # df_plot = pd.DataFrame(data_dic)
+        # labels = list(df_plot['type'].unique())
 
-        enable_layers = ['l00', 'l04', 'l08', 'l12', 'l16', 'l20', 'l23']
-        # enable_layers = ['l00', 'l06', 'l12', 'l18', 'l24']
+        # enable_layers = ['l00', 'l04', 'l08', 'l12', 'l16', 'l20', 'l23']
+        # # enable_layers = ['l00', 'l06', 'l12', 'l18', 'l24']
         
-        high_threshold = np.percentile(df_plot['val'].values, 80)
+        # high_threshold = np.percentile(df_plot['val'].values, 80)
 
-        df_plot['# units in top 20% activation'] = df_plot['val'] >= high_threshold
-        df_plot_sum = df_plot.groupby(['layer', 'type', 'template']).sum().reset_index()
-        # sns.countplot(data=df_plot[df_plot['layer'].isin(enable_layers)], y="layer", hue='type')
-        g = sns.barplot(data=df_plot_sum[df_plot_sum['layer'].isin(enable_layers)], x='# units in top 20% activation', y="layer", hue='type')
+        # df_plot['# units in top 20% activation'] = df_plot['val'] >= high_threshold
+        # df_plot_sum = df_plot.groupby(['layer', 'type', 'template']).sum().reset_index()
+        # # sns.countplot(data=df_plot[df_plot['layer'].isin(enable_layers)], y="layer", hue='type')
+        # g = sns.barplot(data=df_plot_sum[df_plot_sum['layer'].isin(enable_layers)], x='# units in top 20% activation', y="layer", hue='type')
 
 
-        # plt.legend(title='Prompt type', loc='bottom right', labels=['M-disc', 'M-cont', 'Human'])
+        # # plt.legend(title='Prompt type', loc='bottom right', labels=['M-disc', 'M-cont', 'Human'])
 
-        g = sns.FacetGrid(df_plot, col='layer', height=4, col_wrap=4)
-        g.map_dataframe(sns.histplot, x='val', hue='type', hue_order=labels, log_scale=(False,True),  element="step", legend='full', common_bins=False, bins=100)
-        for ax in g.axes.ravel():
-            ax.legend(labels=labels)
-        path = os.path.join('..',args.save_dir,f'd_sensibility_{r}.pdf')
-        g.savefig(path)
-        # cpt sensibility
-        g2 = sns.catplot(data=df_plot.groupby(['type', 'layer']).sum().reset_index(), x='type', y='val', col='layer', kind='bar', height=4, col_wrap=4)
-        g2.despine(left=True)
-        g2.fig.tight_layout()
-        path = os.path.join('..',args.save_dir,f'cpt_sensibility_{r}.pdf')
-        g2.savefig(path)
-        # cpt non zero sensibility
-        df_plot['non_zero'] = df_plot['val']!=0
-        g3 = sns.catplot(data=df_plot.groupby(['type', 'layer']).sum().reset_index(), x='type', y='non_zero', col='layer', kind='bar', height=4, col_wrap=4)
-        g3.despine(left=True)
-        g3.fig.tight_layout()
-        path = os.path.join('..',args.save_dir,f'nz_sensibility_{r}.pdf')
-        g3.savefig(path)      
+        # g = sns.FacetGrid(df_plot, col='layer', height=4, col_wrap=4)
+        # g.map_dataframe(sns.histplot, x='val', hue='type', hue_order=labels, log_scale=(False,True),  element="step", legend='full', common_bins=False, bins=100)
+        # for ax in g.axes.ravel():
+        #     ax.legend(labels=labels)
+        # path = os.path.join('..',args.save_dir,f'd_sensibility_{r}.pdf')
+        # g.savefig(path)
+        # # cpt sensibility
+        # g2 = sns.catplot(data=df_plot.groupby(['type', 'layer']).sum().reset_index(), x='type', y='val', col='layer', kind='bar', height=4, col_wrap=4)
+        # g2.despine(left=True)
+        # g2.fig.tight_layout()
+        # path = os.path.join('..',args.save_dir,f'cpt_sensibility_{r}.pdf')
+        # g2.savefig(path)
+        # # cpt non zero sensibility
+        # df_plot['non_zero'] = df_plot['val']!=0
+        # g3 = sns.catplot(data=df_plot.groupby(['type', 'layer']).sum().reset_index(), x='type', y='non_zero', col='layer', kind='bar', height=4, col_wrap=4)
+        # g3.despine(left=True)
+        # g3.fig.tight_layout()
+        # path = os.path.join('..',args.save_dir,f'nz_sensibility_{r}.pdf')
+        # g3.savefig(path)      
 
 
 def unit_extraction(df, threshold_mode, percentile_high, percentile_low, shared=False, typical=False, high=False, low=False):
@@ -584,15 +585,19 @@ if __name__ == "__main__":
         fc1_files += [f'fc1_att_data_{model_str}_t0_rephrase_fullvoc.pickle']
     data = import_fc1(args.fc1_datapath, fc1_files, mode=['sensibility',])
 
+    # select specific layers
     if args.layers != 'all':
         data['sensibility'] = data['sensibility'][data['sensibility']['layer'].isin(args.layers.split(','))]
 
+    # for debugging
     if args.fast_for_debug:
         # only two relations
         data['sensibility'] = data['sensibility'][data['sensibility']['relation'].isin(['P1001','P176'])]
         # reduce the number of tokens and units to extract
         args.n_units = 3
         args.k_tokens = 2
+
+    # Filter templates to only keep the best ones
     data = filter_templates(data, args.min_template_accuracy, only_best_template=args.best_template)
 
     # Select a subset of relations with "high" accuracy (greater than min_relation_accuracy_for_best_subset fo all prompt types considered in the experiment)
@@ -617,7 +622,8 @@ if __name__ == "__main__":
     if args.low_units:
         modes.append('low')
 
-    plot_sensibility_dist(data, selected_relations, args)
+    # Used to get the data for Figure 3 in the paper
+    # plot_sensibility_dist(data, selected_relations, args)
 
     # launch unit experiment
-    # unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
+    unit_experiment(model, data['sensibility'], selected_relations, args, modes, debug=args.fast_for_debug)
