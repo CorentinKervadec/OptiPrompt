@@ -73,7 +73,7 @@ In that case, it will launch the extraction of the 'high_units' (I'll tell you w
 
 You can find the details of the function parameters at the beginning of the exp_units.py file (starting at line 24). But here are the main arguments:
 
-Choose which prompt type you want to add in the experiment by adding/removing these options (if you want to extract shared or typical prompt, I recommend to only use two prompt types):
+Choose which prompt type you want to add in the experiment by adding/removing these options :
 > --optiprompt
 > 
 > --autoprompt
