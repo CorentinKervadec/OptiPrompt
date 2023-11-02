@@ -64,12 +64,12 @@ Then, launch:
 
 # Qualitative analysis: extracting prompt-typical units
 
-* Use the following script code/exp_units.py
+The following script can be used to select the prompt-typical units, i.e. units that are highly activated by a prompt type but seldom activated by the other ones. It is based on the fc1_data_*.pickle files extracted above.
 
 Here is an example of how to use it:
-> python3 exp_units.py --autoprompt --paraphrase --optiprompt --high_units --percentile_high 99 --n_units 100 --k_tokens 50 --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
+> python3 exp_units.py --autoprompt --paraphrase --optiprompt --typical_units --percentile_typical_max 80 --percentile_typical_min 20 --n_units 100 --k_tokens 50 --global_unit_filtering_threshold --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
 
-In that case, it will launch the extraction of the 'high_units' (I'll tell you what it is later), for autoprompt paraphrase and optiprompt. It will extract 100 units per prompt type (the 100 units are randomly sampled from the set of high units), with 50 tokens associated to each unit. Here, the 'high_units" are defined as the units being activated more often than the 99 percentile (so they belong to the top 1%).
+In that case, it will launch the extraction of the 'high_units' (I'll tell you what it is later), for autoprompt paraphrase and optiprompt. It will extract 100 units per prompt type (the 100 units are randomly sampled from the set of typical units), with 50 tokens associated to each unit. 
 
 You can find the details of the function parameters at the beginning of the exp_units.py file (starting at line 24). But here are the main arguments:
 
@@ -98,7 +98,3 @@ The selection of shared and typical units is controlled by these parameters:
 > --percentile_typical_max 80
 > 
 > --percentile_typical_min 20
-
-So here is an other example. If you want to extract the typical, shared and high units for autoprompt and paraphrases:
-> python3 exp_units.py --autoprompt --paraphrase --shared_units --typical_units --high_units --percentile_high 99 --percentile_typical_max 80 --percentile_typical_min 20 --n_units 100 --k_tokens 50 --save_dir [WHERE-TO-WRITE-THE-RESULTING-TXT] --fc1_datapath [PATH-OF-THE-FC1-DATA] --device cuda
-
