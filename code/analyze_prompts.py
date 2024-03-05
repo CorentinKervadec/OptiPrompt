@@ -92,6 +92,9 @@ def run_fc1_extract(model, all_prompt_files, relation_list, logger, test_data_di
 
             if 'paraphrase' in prompt_file:
                 template_list = rephrase_dic[relation]['templates']
+            elif 'random' in prompt_file:
+                #generate random templates
+                template_list = ['[X]'+''.join([model.tokenizer.decode(random.randint(0, model.get_vocab_size()-1)) for _ in range(5)])+'[Y]' for z in range(10)]
             elif 'optiprompt' in prompt_file:
                 if 'opt' in model.model_name:
                     template_list = ['[X]  ' + '  '.join(['[V%d]'%(i+1) for i in range(OPTIPROMPT_N)]) + ' [Y] .']
