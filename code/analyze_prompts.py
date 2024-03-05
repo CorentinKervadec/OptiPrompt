@@ -585,6 +585,7 @@ if __name__ == "__main__":
     parser.add_argument('--k', type=int, default=5, help='how many predictions will be outputted')
     parser.add_argument('--device', type=str, default='mps', help='Which computation device: cuda or mps')
     parser.add_argument('--output_all_log_probs', action="store_true", help='whether to output all the log probabilities')
+    parser.add_argument('--fp16', action="store_true", )
 
     parser.add_argument('--prompt_files', type=str, default='../prompts/marco_rephrasing/relation-paraphrases_v2.txt,../prompts/LAMA_relations.jsonl,data/prompts/my-autoprompt-filter-causal-facebook-opt-350m_seed0.jsonl', help='prompt file separated by coma')
     parser.add_argument('--relation', type=str, default='all', help='which relation to evaluate.')
